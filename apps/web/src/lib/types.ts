@@ -3,7 +3,7 @@ import type { Echeance, LigneEcriture, Facture, TotauxFacture, ControleMention }
 export type Role = "admin" | "expert" | "collaborateur" | "client" | "dpo";
 export type Permission =
   | "dossiers:read" | "dossiers:write" | "compta:write" | "compta:validate" | "compta:cloture"
-  | "factures:write" | "tiers:write" | "rgpd:manage" | "audit:read" | "users:manage";
+  | "factures:write" | "tiers:write" | "rgpd:manage" | "audit:read" | "users:manage" | "paie:manage" | "portail:client";
 
 export interface User {
   id: number;

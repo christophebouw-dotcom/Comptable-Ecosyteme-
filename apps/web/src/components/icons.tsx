@@ -16,4 +16,9 @@ export const Icon = {
   undo: () => (<svg {...base}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>),
   trash: () => (<svg {...base}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" /></svg>),
   info: () => (<svg {...base}><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg>),
+  edit: () => (<svg {...base}><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="m13.5 6.5 4 4" /></svg>),
+  upload: () => (<svg {...base}><path d="M12 20V8m0 0-5 5m5-5 5 5M4 4h16" /></svg>),
+  message: () => (<svg {...base}><path d="M4 5h16v11H9l-5 4z" /></svg>),
+  file: () => (<svg {...base}><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4" /></svg>),
+  inbox: () => (<svg {...base}><path d="M3 13h5l1 3h6l1-3h5" /><path d="M5 5h14l2 8v6H3v-6z" /></svg>),
 };

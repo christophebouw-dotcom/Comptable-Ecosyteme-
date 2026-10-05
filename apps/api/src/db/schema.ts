@@ -458,4 +458,137 @@ BEGIN
 END;
 `,
   },
+  {
+    version: 4,
+    name: "inventaire, paie et portail client",
+    sql: /* sql */ `
+-- Écritures d'inventaire (régularisations de fin d'exercice) -------------------------
+CREATE TABLE regularisations (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  exercice_id INTEGER NOT NULL REFERENCES exercices(id),
+  type TEXT NOT NULL,
+  cle TEXT,
+  data TEXT NOT NULL,
+  montant INTEGER NOT NULL,
+  ecriture_id INTEGER,
+  created_by INTEGER,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_regularisations ON regularisations(dossier_id, exercice_id);
+
+-- Brouillard supprimé depuis la liste des écritures : la régularisation disparaît avec lui.
+CREATE TRIGGER trg_ecriture_suppr_regularisation AFTER DELETE ON ecritures
+BEGIN
+  DELETE FROM regularisations WHERE ecriture_id = OLD.id;
+END;
+
+-- Paie -------------------------------------------------------------------------
+CREATE TABLE paie_parametres (
+  dossier_id INTEGER PRIMARY KEY REFERENCES dossiers(id),
+  effectif INTEGER NOT NULL DEFAULT 1,
+  taux_at_mp REAL NOT NULL DEFAULT 2.08,
+  taux_versement_mobilite REAL NOT NULL DEFAULT 0,
+  convention TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE salaries (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  matricule TEXT NOT NULL,
+  nom_enc TEXT NOT NULL,                 -- identité chiffrée (AES-256-GCM)
+  prenom_enc TEXT NOT NULL,
+  nir_enc TEXT,                          -- numéro de sécurité sociale chiffré (donnée à accès restreint)
+  email_enc TEXT,
+  email_hash TEXT,
+  iban_enc TEXT,
+  emploi TEXT NOT NULL,
+  statut TEXT NOT NULL CHECK (statut IN ('non_cadre','cadre')),
+  date_entree TEXT NOT NULL,
+  date_sortie TEXT,
+  profil TEXT NOT NULL,                  -- salaire de base, durée, taux PAS chiffré, mutuelle (JSON chiffré)
+  anonymized_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  UNIQUE (dossier_id, matricule)
+);
+CREATE INDEX idx_salaries_email ON salaries(email_hash);
+
+CREATE TABLE bulletins (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  salarie_id INTEGER NOT NULL REFERENCES salaries(id),
+  periode TEXT NOT NULL,                 -- AAAA-MM
+  statut TEXT NOT NULL DEFAULT 'brouillon' CHECK (statut IN ('brouillon','valide')),
+  variables TEXT NOT NULL,
+  resultat_enc TEXT NOT NULL,            -- bulletin calculé (JSON chiffré)
+  net_a_payer INTEGER NOT NULL,
+  cout_employeur INTEGER NOT NULL,
+  ecriture_id INTEGER,
+  hash TEXT,
+  created_by INTEGER,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  validated_by INTEGER,
+  validated_at TEXT,
+  UNIQUE (salarie_id, periode)
+);
+CREATE INDEX idx_bulletins ON bulletins(dossier_id, periode);
+
+CREATE TRIGGER trg_bulletin_valide_no_update BEFORE UPDATE ON bulletins
+WHEN OLD.statut = 'valide'
+  AND (NEW.statut IS NOT OLD.statut OR NEW.variables IS NOT OLD.variables OR NEW.resultat_enc IS NOT OLD.resultat_enc
+       OR NEW.net_a_payer IS NOT OLD.net_a_payer OR NEW.hash IS NOT OLD.hash OR NEW.periode IS NOT OLD.periode OR NEW.salarie_id IS NOT OLD.salarie_id)
+BEGIN SELECT RAISE(ABORT, 'Bulletin validé : modification interdite (établissez un bulletin rectificatif)'); END;
+
+-- Suppression possible uniquement après la durée légale de conservation (5 ans).
+CREATE TRIGGER trg_bulletin_valide_no_delete BEFORE DELETE ON bulletins
+WHEN OLD.statut = 'valide' AND OLD.validated_at > strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-5 years')
+BEGIN SELECT RAISE(ABORT, 'Bulletin validé : suppression interdite (C. trav. art. L3243-4)'); END;
+
+CREATE TRIGGER trg_ecriture_suppr_bulletin AFTER DELETE ON ecritures
+BEGIN
+  UPDATE bulletins SET ecriture_id = NULL WHERE ecriture_id = OLD.id;
+END;
+
+-- Portail client ---------------------------------------------------------------------
+CREATE TABLE demandes_pieces (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  ligne_bancaire_id INTEGER,
+  objet TEXT NOT NULL,
+  date_operation TEXT,
+  montant INTEGER,
+  message TEXT,
+  statut TEXT NOT NULL DEFAULT 'ouverte' CHECK (statut IN ('ouverte','repondue','close')),
+  reponse TEXT,
+  piece_id INTEGER REFERENCES pieces(id),
+  created_by INTEGER,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  repondue_par INTEGER,
+  repondue_at TEXT,
+  close_at TEXT
+);
+CREATE INDEX idx_demandes_pieces ON demandes_pieces(dossier_id, statut);
+
+-- Une pièce supprimée rouvre la demande qu'elle satisfaisait.
+CREATE TRIGGER trg_piece_suppr_demande AFTER DELETE ON pieces
+BEGIN
+  UPDATE demandes_pieces SET piece_id = NULL, statut = 'ouverte' WHERE piece_id = OLD.id AND statut <> 'close';
+END;
+
+CREATE TABLE messages (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  auteur_id INTEGER NOT NULL REFERENCES users(id),
+  cote TEXT NOT NULL CHECK (cote IN ('cabinet','client')),
+  contenu_enc TEXT NOT NULL,             -- message chiffré
+  demande_id INTEGER REFERENCES demandes_pieces(id),
+  created_at TEXT NOT NULL,
+  lu_at TEXT
+);
+CREATE INDEX idx_messages ON messages(dossier_id, created_at);
+
+ALTER TABLE pieces ADD COLUMN deposee_par_client INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];

@@ -59,9 +59,12 @@ export function DossierLayout() {
         <NavLink to={`${base}/grand-livre`} className={tab}>Grand livre</NavLink>
         <NavLink to={`${base}/etats`} className={tab}>États financiers</NavLink>
         <NavLink to={`${base}/revision`} className={tab}>Révision</NavLink>
+        <NavLink to={`${base}/inventaire`} className={tab}>Fin d'exercice</NavLink>
         <NavLink to={`${base}/tva`} className={tab}>TVA</NavLink>
         <NavLink to={`${base}/factures`} className={tab}>Factures</NavLink>
         <NavLink to={`${base}/tiers`} className={tab}>Tiers</NavLink>
+        <NavLink to={`${base}/paie`} className={tab}>Paie</NavLink>
+        <NavLink to={`${base}/echanges`} className={tab}>Échanges client</NavLink>
         <NavLink to={`${base}/mission`} className={tab}>Mission</NavLink>
         <NavLink to={`${base}/cloture`} className={tab}>Clôture & FEC</NavLink>
       </nav>

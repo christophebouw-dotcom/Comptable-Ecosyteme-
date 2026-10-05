@@ -15,6 +15,7 @@ interface LigneBancaire {
   statut: "a_traiter" | "rapprochee" | "ignoree";
   suggestion: { compte: string; compteAux?: string | null } | null;
   ia?: { justification: string; confiance: number };
+  demande: { id: number; statut: "ouverte" | "repondue" | "close"; pieceId: number | null } | null;
 }
 
 interface BanqueData {
@@ -153,7 +154,16 @@ function LigneRow({ ligne: l, base, onDone, canWrite }: { ligne: LigneBancaire; 
   return (
     <tr>
       <td><DateFr iso={l.date} /></td>
-      <td>{l.libelle}{error && <div className="danger-text subtle">{error.detailMessages[0] ?? error.message}</div>}</td>
+      <td>
+        {l.libelle}
+        {l.demande && (
+          <div style={{ marginTop: 4 }}>
+            {l.demande.statut === "ouverte" && <Badge tone="warn">Justificatif demandé au client</Badge>}
+            {l.demande.statut === "repondue" && <Badge tone="ok">{l.demande.pieceId ? "Justificatif reçu (voir Pièces)" : "Réponse du client (voir Échanges)"}</Badge>}
+          </div>
+        )}
+        {error && <div className="danger-text subtle">{error.detailMessages[0] ?? error.message}</div>}
+      </td>
       <td><Money cents={l.montant} signed /></td>
       <td>
         {canWrite ? (
@@ -173,6 +183,13 @@ function LigneRow({ ligne: l, base, onDone, canWrite }: { ligne: LigneBancaire; 
               toast("Écriture de banque créée en brouillard");
               onDone();
             })}>Comptabiliser</button>
+            {!l.demande || l.demande.statut === "close" ? (
+              <button className="btn ghost sm" title="Le client reçoit la demande dans son portail" onClick={() => run(async () => {
+                await api.post(`${base.replace(/\/banque$/, "")}/demandes`, { lignesBancaires: [l.id] });
+                toast("Justificatif demandé au client");
+                onDone();
+              })}>Demander au client</button>
+            ) : null}
             <button className="btn ghost sm" onClick={() => run(async () => { await api.post(`${base}/lignes/${l.id}/statut`, { statut: "ignoree" }); onDone(); })}>Ignorer</button>
           </>
         )}

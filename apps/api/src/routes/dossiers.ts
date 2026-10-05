@@ -73,7 +73,8 @@ export async function dossierRoutes(app: FastifyInstance) {
       return {
         ...presentDossier(d, decrypt),
         exerciceCourant: ex ?? null,
-        alertesMission: controlerMission(mission ? (JSON.parse(mission.data) as Mission) : null, today),
+        // Vigilance LCB-FT : jamais communiquée au client (CMF art. L561-18).
+        alertesMission: user.role === "client" ? [] : controlerMission(mission ? (JSON.parse(mission.data) as Mission) : null, today),
         lignesBancairesATraiter: lignesBancaires,
         brouillards: stats?.brouillards ?? 0,
         validees: stats?.validees ?? 0,

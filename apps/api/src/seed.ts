@@ -8,10 +8,10 @@
  */
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { REGISTRE_PAR_DEFAUT, cleReleve, parseReleveCsv } from "@compta/core";
+import { BAREME_2026, REGISTRE_PAR_DEFAUT, calculerBulletin, cleReleve, ecriturePaie, parseReleveCsv } from "@compta/core";
 import { loadConfig } from "./config.js";
 import { createContext } from "./context.js";
-import { hashPassword } from "./security/crypto.js";
+import { canonicalJson, hashPassword, sha256 } from "./security/crypto.js";
 
 const config = loadConfig();
 if (config.env === "production" && !process.env.SEED_PASSWORD) {
@@ -146,6 +146,53 @@ db.run(
   }),
   new Date().toISOString(), ids.expert!,
 );
+
+// Paie : deux salariés, bulletins du mois précédent validés.
+db.run("INSERT INTO paie_parametres (dossier_id, effectif, taux_at_mp, taux_versement_mobilite, convention, updated_at) VALUES (?, 2, 2.08, 0, ?, ?)",
+  martin, "Boulangerie-pâtisserie artisanale (IDCC 843)", new Date().toISOString());
+db.run("INSERT OR IGNORE INTO journaux (dossier_id, code, libelle, type) VALUES (?, 'PA', 'Paie', 'od')", martin);
+const nirDemo = (corps: string) => `${corps}${String(97 - Number(BigInt(corps) % 97n)).padStart(2, "0")}`;
+const salaries = [
+  { matricule: "S001", nom: "Lambert", prenom: "Julie", nir: nirDemo("2920675123045"), emploi: "Vendeuse", statut: "non_cadre", base: 190_000, pas: 1.6, entree: `${year}-01-02` },
+  { matricule: "S002", nom: "Haddad", prenom: "Karim", nir: nirDemo("1880593054012"), emploi: "Ouvrier boulanger", statut: "non_cadre", base: 245_000, pas: 4.2, entree: `${year}-01-02` },
+] as const;
+const moisPaie = new Date().getMonth() >= 1 ? `${year}-${String(new Date().getMonth()).padStart(2, "0")}` : `${year}-01`;
+const finMoisPaie = new Date(Date.UTC(year, Number(moisPaie.slice(5)), 0)).toISOString().slice(0, 10);
+for (const sa of salaries) {
+  const profil = { salaireBase: sa.base, heuresMensuelles: 151.67, tauxPas: sa.pas, mutuelleSalarie: 2_100, mutuelleEmployeur: 2_100 };
+  const sid = db.run(
+    `INSERT INTO salaries (dossier_id, matricule, nom_enc, prenom_enc, nir_enc, emploi, statut, date_entree, profil) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    martin, sa.matricule, cipher.encrypt(sa.nom), cipher.encrypt(sa.prenom), cipher.encrypt(sa.nir), sa.emploi, sa.statut, sa.entree, cipher.encrypt(JSON.stringify(profil)),
+  ).lastInsertRowid;
+  const variables = { heuresSup25: sa.matricule === "S002" ? 6 : 0, heuresSup50: 0, primes: 0, heuresAbsence: 0, indemnitesNonSoumises: 0 };
+  const b = calculerBulletin({ statut: sa.statut, ...profil }, variables, { effectif: 2, tauxAtMp: 2.08, tauxVersementMobilite: 0 }, BAREME_2026);
+  const ecritureId = compta.create(martin, ecriturePaie(b, { journal: "PA", date: finMoisPaie, pieceRef: `PAIE-${moisPaie.replace("-", "")}-${sa.matricule}`, nomSalarie: sa.matricule, periode: moisPaie }), ids.collaborateur!);
+  const validatedAt = new Date().toISOString();
+  db.run(
+    `INSERT INTO bulletins (dossier_id, salarie_id, periode, statut, variables, resultat_enc, net_a_payer, cout_employeur, ecriture_id, hash, created_by, validated_by, validated_at)
+     VALUES (?, ?, ?, 'valide', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    martin, sid, moisPaie, JSON.stringify(variables), cipher.encrypt(JSON.stringify(b)), b.netAPayer, b.coutEmployeur, ecritureId,
+    sha256(canonicalJson({ dossier: martin, salarie: sid, periode: moisPaie, variables: JSON.stringify(variables), resultat: b, validatedAt })), ids.collaborateur!, ids.collaborateur!, validatedAt,
+  );
+}
+
+// Portail client : une demande de justificatif et un échange de messages.
+const ligneSansPiece = db.get<{ id: number; date: string; libelle: string; montant: number }>(
+  "SELECT id, date, libelle, montant FROM lignes_bancaires WHERE dossier_id = ? AND montant < 0 ORDER BY date DESC LIMIT 1", martin,
+);
+if (ligneSansPiece) {
+  db.run(
+    "INSERT INTO demandes_pieces (dossier_id, ligne_bancaire_id, objet, date_operation, montant, message, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    martin, ligneSansPiece.id, `Justificatif de l'opération « ${ligneSansPiece.libelle} »`, ligneSansPiece.date, ligneSansPiece.montant,
+    "Pouvez-vous nous transmettre la facture correspondante ?", ids.collaborateur!,
+  );
+}
+db.run("INSERT INTO demandes_pieces (dossier_id, objet, message, created_by) VALUES (?, ?, ?, ?)", martin, "Contrat de prêt du four professionnel", "Le tableau d'amortissement de l'emprunt nous permettra de comptabiliser les intérêts.", ids.collaborateur!);
+const ilYa = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+db.run("INSERT INTO messages (dossier_id, auteur_id, cote, contenu_enc, created_at, lu_at) VALUES (?, ?, 'cabinet', ?, ?, ?)", martin, ids.collaborateur!,
+  cipher.encrypt("Bonjour Monsieur Martin, votre espace est ouvert : vous pouvez y déposer vos factures et tickets au fil de l'eau."), ilYa(50), ilYa(48));
+db.run("INSERT INTO messages (dossier_id, auteur_id, cote, contenu_enc, created_at) VALUES (?, ?, 'client', ?, ?)", martin, ids.client!,
+  cipher.encrypt("Merci ! Je dépose les tickets de la semaine ce soir. Pour la TVA de ce mois, quel montant dois-je prévoir ?"), ilYa(3));
 
 for (const t of REGISTRE_PAR_DEFAUT) db.run("INSERT INTO registre_traitements (reference, data) VALUES (?, ?)", t.reference, JSON.stringify(t));
 const today = new Date().toISOString().slice(0, 10);

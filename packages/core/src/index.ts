@@ -18,3 +18,5 @@ export * from "./revision.js";
 export * from "./banque.js";
 export * from "./mission.js";
 export * from "./pieces.js";
+export * from "./regularisations.js";
+export * from "./paie.js";

@@ -20,16 +20,19 @@ export type Permission =
   | "tiers:write"
   | "rgpd:manage"
   | "audit:read"
-  | "users:manage";
+  | "users:manage"
+  | "paie:manage"
+  | "portail:client";
 
 const MATRIX: Record<Role, Permission[]> = {
   admin: [
     "dossiers:read", "dossiers:write", "compta:write", "compta:validate", "compta:cloture",
-    "factures:write", "tiers:write", "rgpd:manage", "audit:read", "users:manage",
+    "factures:write", "tiers:write", "rgpd:manage", "audit:read", "users:manage", "paie:manage",
   ],
-  expert: ["dossiers:read", "dossiers:write", "compta:write", "compta:validate", "compta:cloture", "factures:write", "tiers:write", "audit:read"],
-  collaborateur: ["dossiers:read", "compta:write", "factures:write", "tiers:write"],
-  client: ["dossiers:read"],
+  expert: ["dossiers:read", "dossiers:write", "compta:write", "compta:validate", "compta:cloture", "factures:write", "tiers:write", "audit:read", "paie:manage"],
+  collaborateur: ["dossiers:read", "compta:write", "factures:write", "tiers:write", "paie:manage"],
+  // Le client dirigeant consulte son dossier et utilise le portail (dépôt de pièces, échanges).
+  client: ["dossiers:read", "portail:client"],
   dpo: ["rgpd:manage", "audit:read"],
 };
 
@@ -37,7 +40,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   admin: "Administrateur",
   expert: "Expert-comptable",
   collaborateur: "Collaborateur comptable",
-  client: "Client (lecture seule)",
+  client: "Client (portail)",
   dpo: "Délégué à la protection des données",
 };
 

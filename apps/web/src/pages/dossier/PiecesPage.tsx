@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { Icon } from "../../components/icons";
 import { Alert, Badge, Card, DateFr, Empty, ErrorBox, Field, Loading, Money } from "../../components/ui";
 import { api } from "../../lib/api";
+import { ACCEPT_PIECES, corpsDepot } from "../../lib/fichiers";
 import { useAction, useApi, useAuth, useToast } from "../../lib/hooks";
 import type { Tiers } from "../../lib/types";
 import { useDossier } from "./DossierLayout";
@@ -24,6 +25,7 @@ interface Piece {
   erreur: string | null;
   ecritureId: number | null;
   iaModele: string | null;
+  deposeeParClient: boolean;
   createdAt: string;
   extraction: ExtractionPiece | null;
   typeLibelle: string | null;
@@ -39,17 +41,6 @@ const STATUTS: Record<Piece["statut"], { label: string; tone?: "ok" | "warn" | "
 };
 
 const ORIGINE_COMPTE = { habitude: "habitude du dossier", ia: "proposé par l'IA", facturx: "facture électronique", defaut: "par défaut" };
-
-const MIME_PAR_EXTENSION: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", gif: "image/gif", xml: "application/xml" };
-
-function lireBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result).split(",")[1] ?? "");
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(file);
-  });
-}
 
 export function PiecesPage() {
   const { dossier, base } = useDossier();
@@ -75,10 +66,8 @@ export function PiecesPage() {
     for (let i = 0; i < liste.length; i++) {
       const f = liste[i]!;
       setEnvoi({ total: liste.length, fait: i, courant: f.name });
-      const mime = f.type || MIME_PAR_EXTENSION[f.name.split(".").pop()?.toLowerCase() ?? ""] || "";
       try {
-        if (f.size > 10 * 1024 * 1024) throw new Error("fichier supérieur à 10 Mo");
-        const r = await api.post<Piece>(`/api/dossiers/${dossier.id}/pieces`, { nomFichier: f.name, mime: mime === "text/xml" ? "application/xml" : mime, contenuBase64: await lireBase64(f) });
+        const r = await api.post<Piece>(`/api/dossiers/${dossier.id}/pieces`, await corpsDepot(f));
         derniere = r.id;
       } catch (e) {
         setErreurs((x) => [...x, `${f.name} : ${(e as Error).message}`]);
@@ -118,7 +107,7 @@ export function PiecesPage() {
           onDragLeave={() => setSurvol(false)}
           onDrop={onDrop}
         >
-          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.xml" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.length) void deposer(e.target.files); e.target.value = ""; }} />
+          <input type="file" multiple accept={ACCEPT_PIECES} style={{ display: "none" }} onChange={(e) => { if (e.target.files?.length) void deposer(e.target.files); e.target.value = ""; }} />
           {envoi ? (
             <div>
               <strong>Lecture en cours… {envoi.fait + 1} / {envoi.total}</strong>
@@ -156,6 +145,7 @@ export function PiecesPage() {
                   </div>
                   <div className="row" style={{ gap: 6, marginTop: 4 }}>
                     <Badge tone={STATUTS[p.statut].tone}>{STATUTS[p.statut].label}</Badge>
+                    {p.deposeeParClient && <Badge tone="info">Client</Badge>}
                     {p.source === "ia" && <Badge>IA</Badge>}
                     {p.source === "facturx" && <Badge tone="ok">Factur-X</Badge>}
                     {p.analyse?.controles.some((c) => c.niveau === "bloquant") && <Badge tone="danger">Anomalie</Badge>}

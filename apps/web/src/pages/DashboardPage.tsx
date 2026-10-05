@@ -17,6 +17,9 @@ export function DashboardPage() {
   const { user, can } = useAuth();
   const dossiers = useApi<Dossier[]>(can("dossiers:read") ? "/api/dossiers" : null);
   const rgpd = useApi<RgpdDashboard>(can("rgpd:manage") ? "/api/rgpd/tableau-de-bord" : null);
+  const activite = useApi<{ dossierId: number; raisonSociale: string; messagesNonLus: number; demandesRepondues: number; piecesClient: number }[]>(
+    can("compta:write") ? "/api/echanges/a-traiter" : null,
+  );
 
   const echeances = (dossiers.data ?? [])
     .flatMap((d) => (d.prochainesEcheances ?? []).map((e) => ({ ...e, dossier: d })))
@@ -45,6 +48,25 @@ export function DashboardPage() {
           <Stat label="Violations ouvertes" value={rgpd.data.violationsOuvertes} tone={rgpd.data.violationsOuvertes ? "danger" : "ok"} />
           <Stat label="Notifications CNIL en attente" value={rgpd.data.notificationsEnAttente.length} hint="Délai légal : 72 heures" tone={rgpd.data.notificationsEnAttente.length ? "danger" : "ok"} />
           <Stat label="Traitements au registre" value={rgpd.data.traitements} hint="RGPD art. 30" />
+        </div>
+      )}
+
+      {activite.data && activite.data.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Card title="Activité de vos clients" subtitle="Messages, justificatifs et réponses reçus depuis le portail client" padded={false}>
+            <table>
+              <tbody>
+                {activite.data.map((a) => (
+                  <tr key={a.dossierId}>
+                    <td><Link to={`/dossiers/${a.dossierId}/echanges`}>{a.raisonSociale}</Link></td>
+                    <td>{a.messagesNonLus > 0 && <Badge tone="info">{a.messagesNonLus} message(s) non lu(s)</Badge>}</td>
+                    <td>{a.demandesRepondues > 0 && <Badge tone="warn">{a.demandesRepondues} demande(s) répondue(s)</Badge>}</td>
+                    <td>{a.piecesClient > 0 && <Link to={`/dossiers/${a.dossierId}/pieces`}><Badge tone="ok">{a.piecesClient} pièce(s) déposée(s)</Badge></Link>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
         </div>
       )}
 

@@ -17,6 +17,9 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Clôture et interdiction d'écrire sur un exercice clos | C. com. L123-12 | `cloturer`, trigger `trg_ecriture_exercice_clos`, `trg_exercice_clos_no_reopen` | `api.test.ts` « clôture l'exercice… » |
 | Reprise des soldes (à-nouveaux) | PCG | `computeANouveaux` (classes 1 à 5, résultat en 120/129) | `ledger.test.ts`, `api.test.ts` |
 | Conservation 10 ans des livres et pièces | C. com. L123-22 | `REGLES_CONSERVATION.livres_comptables`, signalement à la purge | `rgpd.test.ts` |
+| Indépendance des exercices (cut-off) | C. com. L123-21 ; PCG 513-4 | `regularisations.ts` : FNP (408/44586), FAE (418/44587), CCA/PCA (486/487) au prorata des jours, charges à payer, produits à recevoir | `paie.test.ts` « régularisations » ; API « écritures d'inventaire » |
+| Dépréciation des créances sur le HT | PCG 214-25 | `depreciation_client` (6817 / 491) | `paie.test.ts` |
+| Extourne des régularisations à l'ouverture | Pratique comptable | Route `/regularisations/extournes`, contre-passation au 1er jour, une seule fois | API « extournes à l'ouverture » |
 
 ## 2. Fichier des Écritures Comptables
 
@@ -59,7 +62,33 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Comptes d'attente soldés à la clôture | PCG art. 944-47 | Contrôle `ATTENTE` (bloquant) | `expertise.test.ts` |
 | Diligences de présentation des comptes | NP 2300 | `PROGRAMME_REVISION` par cycle | `api` expertise |
 
-## 5. Intelligence artificielle
+## 5. Paie
+
+| Exigence | Fondement | Implémentation | Test |
+|---|---|---|---|
+| Mentions du bulletin, présentation simplifiée | C. trav. R3243-1 ; arrêté du 25/02/2016 | `BulletinView` : rubriques santé, retraite, famille, chômage, autres, CSG/CRDS, allègements ; coût employeur | Parcours navigateur |
+| Montant net social | Décret 2023-1301 | `netSocial` | `paie.test.ts` |
+| Plafond de la sécurité sociale, tranches 1 et 2 | CSS L241-3 ; ANI AGIRC-ARRCO | `BAREME_2026.pmss`, tranches T1/T2, CEG, CET, APEC | `paie.test.ts` « cadre au-dessus du plafond » |
+| Taux réduits maladie et allocations familiales | CSS L241-2-1, L241-6-1 | Seuils 2,25 et 3,3 SMIC | `paie.test.ts` |
+| Réduction générale dégressive | CSS L241-13 | `coefficientReductionGenerale` (paramétrable) | `paie.test.ts` « maximale au SMIC, nulle à 3 SMIC » |
+| Heures supplémentaires : majorations, réduction salariale, exonération d'impôt | C. trav. L3121-36 ; CSS L241-17 ; CGI 81 quater | Majorations 25 % / 50 %, réduction 11,31 %, déduction forfaitaire patronale | `paie.test.ts` |
+| Prélèvement à la source | CGI 204 A et s. | Taux personnalisé ou grille du taux neutre | `paie.test.ts` |
+| Intangibilité et conservation 5 ans | C. trav. L3243-4 | Bulletin validé figé (trigger, empreinte SHA-256), suppression possible seulement après 5 ans, purge | API « paie » |
+| Comptabilisation | PCG | `ecriturePaie` : 641x, 645x, 6333/6312, 421, 431, 437, 4421 | `paie.test.ts` « écriture équilibrée » |
+| NIR : contrôle, chiffrement, masquage | Décret 2019-341 (NIR) ; RGPD art. 32 et 87 | `validateNir`, `nir_enc`, `maskNir` | `paie.test.ts`, API |
+
+> Le barème 2026 est **indicatif et paramétrable** (`BAREME_2026`). Il doit être vérifié à chaque évolution légale ou conventionnelle. La DSN n'est pas produite : le récapitulatif par organisme sert à la contrôler.
+
+## 6. Portail client
+
+| Exigence | Fondement | Implémentation | Test |
+|---|---|---|---|
+| Cloisonnement par client | RGPD art. 25 et 32 | `requireDossier` + permission `portail:client` | API « sans accès aux autres dossiers » |
+| Confidentialité des échanges | RGPD art. 32 ; secret professionnel (ordonnance 45-2138, art. 21) | Messages chiffrés, contenu absent du journal d'audit | API « messages chiffrés » |
+| Interdiction de divulgation LCB-FT | CMF L561-18 | Mission et alertes de vigilance non exposées au client | API |
+| Traçabilité des justificatifs | ANC 2014-03 art. 921-3 | Pièce déposée par le client marquée, liée à la demande, dédoublonnée | API « dépôt de pièce » |
+
+## 7. Intelligence artificielle
 
 | Exigence | Fondement | Implémentation | Test |
 |---|---|---|---|
@@ -70,7 +99,7 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Sortie du modèle non fiable par principe | Bonne pratique | Filtrage serveur des comptes, tiers et identifiants proposés | `pieces.test.ts` |
 | Conservation des justificatifs | C. com. L123-22 | Pièce comptabilisée non supprimable (trigger) | `pieces.test.ts` |
 
-## 6. RGPD
+## 8. RGPD
 
 | Exigence | Article | Implémentation | Test |
 |---|---|---|---|
@@ -82,7 +111,7 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Information des personnes | 13, 14 | Page `/confidentialite` | — |
 | Délai de réponse : 1 mois + 2 | 12.3 | `delaiReponse`, prolongation | `rgpd.test.ts` |
 | Vérification d'identité | 12.6 | Traitement bloqué tant que l'identité n'est pas vérifiée | `api.test.ts` |
-| Droit d'accès et portabilité | 15, 20 | `exportPersonne` (JSON structuré) | `api.test.ts` « demande d'accès » |
+| Droit d'accès et portabilité | 15, 20 | `exportPersonne` (JSON structuré), y compris la paie des salariés (NIR masqué) | `api.test.ts` « demande d'accès » ; API « paie et RGPD » |
 | Effacement et exception d'obligation légale | 17.1, 17.3.b | `analyserEffacement`, `executerEffacement` | `rgpd.test.ts`, `api.test.ts` |
 | Limitation du traitement | 18 | `tiers.restricted`, coordonnées non exposées | `api.test.ts` |
 | Retrait du consentement, opposition | 7.3, 21 | Enregistrement d'un retrait horodaté | — |
@@ -95,7 +124,7 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Analyse d'impact | 35 | Indicateur `aipdRequise` (paie/NIR, LCB-FT) | — |
 | Aucun traceur, aucun transfert vers des tiers | 44 et s. ; loi I&L art. 82 | Aucune ressource externe (polices système, CSP `self`), cookie de session seul | En-têtes testés |
 
-## 7. Sécurité (référentiels CNIL)
+## 9. Sécurité (référentiels CNIL)
 
 | Exigence | Référence | Implémentation |
 |---|---|---|
@@ -105,3 +134,4 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Authentification forte | Recommandation CNIL et ANSSI | TOTP RFC 6238, rotation de session |
 | Journalisation des accès | Recommandation CNIL (6 mois à 1 an) | `access_log` purgé à 12 mois ; `audit_log` chaîné, 10 ans |
 | Chiffrement des données sensibles | Art. 32.1.a | AES-256-GCM, clés dérivées par HKDF |
+| Disponibilité et restauration | Art. 32.1.c | Sauvegardes quotidiennes chiffrées et authentifiées, rotation, restauration vérifiée (`PRAGMA integrity_check`) | `sauvegarde.test.ts` |

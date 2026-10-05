@@ -5,6 +5,7 @@ import {
   REGLES_CONSERVATION,
   addMonths,
   analyserEffacement,
+  maskNir,
 } from "@compta/core";
 import type { AppContext } from "../context.js";
 import type { TiersRow } from "../routes/tiers.js";
@@ -25,6 +26,15 @@ export class RgpdService {
   tiersParEmail(email: string): TiersRow[] {
     const h = this.ctx.cipher.blindIndex(email);
     return this.ctx.db.all<TiersRow>("SELECT * FROM tiers WHERE email_hash = ?", h);
+  }
+
+  /** Salariés (paie) rattachés à une adresse e-mail. */
+  salariesParEmail(email: string) {
+    const h = this.ctx.cipher.blindIndex(email);
+    return this.ctx.db.all<{
+      id: number; dossier_id: number; matricule: string; nom_enc: string; prenom_enc: string; nir_enc: string | null; iban_enc: string | null;
+      emploi: string; date_entree: string; date_sortie: string | null;
+    }>("SELECT * FROM salaries WHERE email_hash = ? AND anonymized_at IS NULL", h);
   }
 
   /**
@@ -57,6 +67,25 @@ export class RgpdService {
         factures: factures.map((f) => ({ ...f, total_ttc: f.total_ttc / 100 })),
       };
     });
+    const salaries = this.salariesParEmail(email).map((s) => {
+      const dossier = db.get<{ raison_sociale: string }>("SELECT raison_sociale FROM dossiers WHERE id = ?", s.dossier_id);
+      const bulletins = db.all<{ periode: string; net_a_payer: number; statut: string }>(
+        "SELECT periode, net_a_payer, statut FROM bulletins WHERE salarie_id = ? AND statut = 'valide' ORDER BY periode", s.id,
+      );
+      const nir = cipher.decrypt(s.nir_enc);
+      return {
+        employeur: dossier?.raison_sociale,
+        matricule: s.matricule,
+        nom: cipher.decrypt(s.nom_enc),
+        prenom: cipher.decrypt(s.prenom_enc),
+        emploi: s.emploi,
+        dateEntree: s.date_entree,
+        dateSortie: s.date_sortie,
+        nir: nir ? maskNir(nir) : null,
+        iban: cipher.decrypt(s.iban_enc),
+        bulletins: bulletins.map((b) => ({ periode: b.periode, netAPayer: b.net_a_payer / 100 })),
+      };
+    });
     const consentements = db.all<{ finalite: string; accorde: number; source: string; texte_version: string; at: string }>(
       "SELECT finalite, accorde, source, texte_version, at FROM consentements WHERE email_hash = ? ORDER BY at",
       h!,
@@ -71,6 +100,7 @@ export class RgpdService {
         ? { nom: user.nom, email: user.email, role: user.role, creeLe: user.created_at, derniereConnexion: user.last_login_at, doubleAuthentification: !!user.totp_enabled }
         : null,
       fichesTiers: tiers,
+      salarie: salaries,
       consentements: consentements.map((c) => ({ ...c, accorde: !!c.accorde })),
       journalConnexions: connexions,
       informations: {
@@ -82,9 +112,9 @@ export class RgpdService {
   }
 
   /** Inventaire des données d'une personne, par catégorie de conservation. */
-  inventaire(email: string): (DonneeDetenue & { tiersId?: number })[] {
+  inventaire(email: string): (DonneeDetenue & { tiersId?: number; salarieId?: number })[] {
     const { db } = this.ctx;
-    const out: (DonneeDetenue & { tiersId?: number })[] = [];
+    const out: (DonneeDetenue & { tiersId?: number; salarieId?: number })[] = [];
     const today = this.today();
     for (const t of this.tiersParEmail(email)) {
       const derniereFin = db.get<{ fin: string | null }>(
@@ -104,6 +134,11 @@ export class RgpdService {
         dateDepart: t.fin_relation ?? today,
         tiersId: t.id,
       });
+    }
+    for (const s of this.salariesParEmail(email)) {
+      const dernier = db.get<{ v: string | null }>("SELECT MAX(validated_at) AS v FROM bulletins WHERE salarie_id = ? AND statut = 'valide'", s.id)?.v;
+      if (dernier) out.push({ categorie: "bulletins_paie", description: `Bulletins de paie (salarié ${s.matricule})`, dateDepart: dernier.slice(0, 10), salarieId: s.id });
+      out.push({ categorie: "dossiers_personnel", description: `Dossier du personnel (salarié ${s.matricule})`, dateDepart: s.date_sortie ?? today, salarieId: s.id });
     }
     const h = this.ctx.cipher.blindIndex(email)!;
     const consent = db.get<{ at: string }>("SELECT MAX(at) AS at FROM consentements WHERE email_hash = ? AND accorde = 1", h);
@@ -153,6 +188,16 @@ export class RgpdService {
           actions.push(`Tiers ${t.compte_aux} : anonymisé intégralement`);
         }
       }
+      for (const s of this.salariesParEmail(email)) {
+        const conserver = lies.some(({ item, decision }) => item.salarieId === s.id && decision.decision === "conserver_limiter");
+        if (conserver) {
+          db.run("UPDATE salaries SET email_enc = NULL, email_hash = NULL WHERE id = ?", s.id);
+          actions.push(`Salarié ${s.matricule} : adresse e-mail effacée, dossier de paie conservé (obligation légale de conservation)`);
+        } else {
+          this.anonymiserSalarie(s.id);
+          actions.push(`Salarié ${s.matricule} : anonymisé`);
+        }
+      }
       const h = this.ctx.cipher.blindIndex(email)!;
       const nbConsent = db.run("DELETE FROM consentements WHERE email_hash = ?", h).changes;
       if (nbConsent) actions.push(`${nbConsent} consentement(s) supprimé(s)`);
@@ -163,6 +208,13 @@ export class RgpdService {
       }
     });
     return { decisions, actions };
+  }
+
+  anonymiserSalarie(salarieId: number) {
+    this.ctx.db.run(
+      `UPDATE salaries SET nom_enc = ?, prenom_enc = ?, nir_enc = NULL, email_enc = NULL, email_hash = NULL, iban_enc = NULL, anonymized_at = ? WHERE id = ?`,
+      this.ctx.cipher.encrypt(ANONYME), this.ctx.cipher.encrypt(ANONYME), this.ctx.now().toISOString(), salarieId,
+    );
   }
 
   anonymiserUtilisateur(userId: number) {
@@ -225,6 +277,22 @@ export class RgpdService {
       );
       if (!dryRun) for (const u of users) this.anonymiserUtilisateur(u.id);
       add("comptes_utilisateurs_inactifs", users.length, "désactivation et anonymisation");
+
+      // Bulletins de paie validés depuis plus de 5 ans (C. trav. art. L3243-4).
+      const bulLimit = iso(REGLES_CONSERVATION.bulletins_paie.dureeMois);
+      const nBul = db.get<{ n: number }>("SELECT COUNT(*) AS n FROM bulletins WHERE statut = 'valide' AND validated_at < ?", bulLimit)!.n;
+      if (!dryRun) db.run("DELETE FROM bulletins WHERE statut = 'valide' AND validated_at < ?", bulLimit);
+      add("bulletins_paie", nBul, "suppression");
+
+      // Salariés sortis depuis plus de 5 ans et sans bulletin conservé : anonymisation.
+      const salLimit = addMonths(today, -REGLES_CONSERVATION.dossiers_personnel.dureeMois);
+      const sals = db.all<{ id: number }>(
+        `SELECT s.id FROM salaries s WHERE s.anonymized_at IS NULL AND s.date_sortie IS NOT NULL AND s.date_sortie < ?
+           AND NOT EXISTS (SELECT 1 FROM bulletins b WHERE b.salarie_id = s.id AND b.validated_at >= ?)`,
+        salLimit, bulLimit,
+      );
+      if (!dryRun) for (const s of sals) this.anonymiserSalarie(s.id);
+      add("dossiers_personnel", sals.length, "anonymisation");
 
       // Journal d'audit au-delà de 10 ans.
       const auditLimit = iso(REGLES_CONSERVATION.logs_audit.dureeMois);

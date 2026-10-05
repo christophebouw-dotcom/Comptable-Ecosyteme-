@@ -33,7 +33,7 @@ import {
 } from "@compta/core";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { conflict, notFound, unprocessable } from "../http/errors.js";
+import { conflict, forbidden, notFound, unprocessable } from "../http/errors.js";
 import { intParam, requireDossier } from "../http/guards.js";
 import type { ExerciceRow } from "../services/compta.js";
 
@@ -242,9 +242,20 @@ export async function expertiseRoutes(app: FastifyInstance) {
     )?.s ?? 0;
     const mouvements = mouvementsLibres(dossier.id, compte);
     const aTraiter = lignes.filter((l) => l.statut === "a_traiter");
+    // Justificatifs demandés au client (portail) pour ces opérations.
+    const demandes = new Map(
+      db.all<{ ligne_bancaire_id: number; id: number; statut: string; piece_id: number | null }>(
+        "SELECT ligne_bancaire_id, id, statut, piece_id FROM demandes_pieces WHERE dossier_id = ? AND ligne_bancaire_id IS NOT NULL ORDER BY id",
+        dossier.id,
+      ).map((d) => [d.ligne_bancaire_id, { id: d.id, statut: d.statut, pieceId: d.piece_id }]),
+    );
     return {
       compte,
-      lignes: lignes.map((l) => ({ ...l, suggestion: l.statut === "a_traiter" ? suggererImputation(l.libelle, regles) : null })),
+      lignes: lignes.map((l) => ({
+        ...l,
+        suggestion: l.statut === "a_traiter" ? suggererImputation(l.libelle, regles) : null,
+        demande: demandes.get(l.id) ?? null,
+      })),
       mouvementsNonRapproches: mouvements,
       etat: {
         soldeComptable,
@@ -459,7 +470,9 @@ export async function expertiseRoutes(app: FastifyInstance) {
   };
 
   app.get("/api/dossiers/:dossierId/mission", async (req) => {
-    const { dossier } = requireDossier(req, "dossiers:read");
+    const { user, dossier } = requireDossier(req, "dossiers:read");
+    // Vigilance LCB-FT : jamais communiquée au client (interdiction de divulgation, CMF art. L561-18).
+    if (user.role === "client") throw forbidden();
     const m = lireMission(dossier.id);
     return {
       mission: m,

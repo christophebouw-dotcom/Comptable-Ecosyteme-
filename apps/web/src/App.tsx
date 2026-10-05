@@ -15,6 +15,9 @@ import { PiecesPage } from "./pages/dossier/PiecesPage";
 import { RevisionPage } from "./pages/dossier/RevisionPage";
 import { CloturePage } from "./pages/dossier/CloturePage";
 import { EcrituresPage } from "./pages/dossier/EcrituresPage";
+import { EchangesPage } from "./pages/dossier/EchangesPage";
+import { InventairePage } from "./pages/dossier/InventairePage";
+import { BulletinPage, PaiePage } from "./pages/dossier/PaiePage";
 import { EtatsPage } from "./pages/dossier/EtatsPage";
 import { FacturesPage } from "./pages/dossier/FacturesPage";
 import { GrandLivrePage } from "./pages/dossier/GrandLivrePage";
@@ -24,12 +27,15 @@ import { TiersPage } from "./pages/dossier/TiersPage";
 import { TvaPage } from "./pages/dossier/TvaPage";
 import { DossiersPage } from "./pages/DossiersPage";
 import { LoginPage } from "./pages/LoginPage";
+import { PortailApp } from "./pages/portail/Portail";
 import { RgpdPage } from "./pages/RgpdPage";
 import { UsersPage } from "./pages/UsersPage";
 
 export function App() {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
+  // Les dirigeants clients disposent d'un espace dédié, simplifié.
+  if (user?.role === "client") return <PortailApp />;
   return (
     <Routes>
       <Route path="/confidentialite" element={<ConfidentialitePage />} />
@@ -55,6 +61,10 @@ export function App() {
             <Route path="tva" element={<TvaPage />} />
             <Route path="factures" element={<FacturesPage />} />
             <Route path="tiers" element={<TiersPage />} />
+            <Route path="inventaire" element={<InventairePage />} />
+            <Route path="paie" element={<PaiePage />} />
+            <Route path="paie/bulletins/:bulletinId" element={<BulletinPage />} />
+            <Route path="echanges" element={<EchangesPage />} />
             <Route path="cloture" element={<CloturePage />} />
           </Route>
           <Route path="rgpd/*" element={<RgpdPage />} />
