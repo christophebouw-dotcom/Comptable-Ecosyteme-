@@ -130,7 +130,8 @@ export function computeRatios(ecritures: Ecriture[], dureeExerciceJours = 360): 
   const ca = sig.chiffreAffaires;
   const pct = (n: Cents, d: Cents) => (d ? Math.round((n / d) * 1000) / 10 : null);
   const clients = somme(bilan, ["411", "413", "416"]);
-  const fournisseurs = -somme(bilan, ["401", "403", "404", "408"]);
+  // Fournisseurs d'exploitation uniquement : les fournisseurs d'immobilisations (404) faussent le délai.
+  const fournisseurs = -somme(bilan, ["401", "403", "408"]);
   const achats = charges(soldes(ecritures), ["60", "61", "62"]);
   const stocks = somme(bilan, ["3"], ["39"]);
   const tresorerie = somme(bilan, ["5"], ["59"]); // 519 (concours bancaires) vient en déduction

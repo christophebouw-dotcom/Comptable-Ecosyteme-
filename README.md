@@ -32,6 +32,17 @@ Comptabilité en partie double aux écritures intangibles, FEC conforme, TVA, fa
 | **Clôture** | Contrôles (brouillard, équilibre, intégrité), empreinte de clôture, ouverture de l'exercice suivant avec à-nouveaux automatiques |
 | **FEC** | Export conforme à l'art. A47 A-1 du LPF (18 zones, ISO 8859-15 ou UTF-8) et **contrôleur de FEC** intégré |
 
+### Outils de l'expert-comptable
+| | |
+|---|---|
+| **Banque** | Import des relevés CSV et OFX (doublons ignorés), rapprochement automatique avec le 512, imputation en un clic avec suggestion de compte et règles apprises, suivi de l'écart à justifier |
+| **Immobilisations** | Registre, plans d'amortissement linéaire (prorata temporis 30/360) et dégressif fiscal (coefficients 1,25 / 1,75 / 2,25, bascule en linéaire), reprise des amortissements antérieurs, écriture de dotations |
+| **Révision** | Contrôles automatiques : caisse créditrice, comptes d'attente non soldés, tiers inversés, créances de plus de 90 jours, cohérence TVA/CA, immobilisations sans plan… ; programme de travail par cycle (23 diligences) avec statut et commentaires |
+| **Analyse** | Soldes intermédiaires de gestion, CAF, ratios (marges, délais clients et fournisseurs, rotation des stocks, endettement) |
+| **IS** | Passage du résultat comptable au résultat fiscal, taux réduit PME 15 % puis 25 %, imputation plafonnée des déficits, acomptes, écriture 695 / 444 |
+| **Mission et LCB-FT** | Lettre de mission (déontologie, art. 151), identification du client et des bénéficiaires effectifs, niveau de risque, PPE, périodicité de revue ; alertes sur le tableau de bord |
+| **Reprise de dossier** | Import du FEC d'un autre logiciel : contrôle préalable, création des journaux, comptes et tiers, tout ou rien |
+
 ### Fiscalité et facturation
 - **TVA** : préparation de la CA3/CA12 (collectée par taux, déductible ABS et immobilisations, crédit reporté) et écriture de liquidation.
 - **Factures conformes** : contrôle des mentions obligatoires (CGI ann. II art. 242 nonies A, C. com. L441-9), y compris les **nouvelles mentions de la réforme 2026** : SIREN du client, catégorie d'opération, option pour la TVA sur les débits.
@@ -96,6 +107,10 @@ Comptes de démonstration (mot de passe `Demo-Compta-2026!`) :
 ```
 packages/core    Domaine métier pur, sans dépendance, partagé front/back
   ├─ pcg, ledger        Plan comptable, partie double, états, à-nouveaux, lettrage
+  ├─ immobilisations    Plans d'amortissement linéaire et dégressif
+  ├─ banque             Lecture CSV/OFX, rapprochement, règles d'imputation
+  ├─ analyse, revision  SIG, CAF, ratios, IS ; contrôles et programme de travail
+  ├─ mission            Lettre de mission et vigilance LCB-FT
   ├─ fec                Génération et contrôle du FEC, encodage ISO 8859-15
   ├─ tva, facture       CA3, mentions obligatoires, écriture de vente
   ├─ facturx            XML CII EN 16931
@@ -142,7 +157,7 @@ Voir [SECURITY.md](SECURITY.md). Points clés : sessions opaques (seule l'emprei
 npm test
 ```
 
-**80 tests** couvrent notamment :
+**104 tests** couvrent notamment :
 - le moteur comptable : équilibre, bilan équilibré, à-nouveaux, contre-passation, lettrage ;
 - le FEC : un FEC généré passe son propre contrôle, avec les deux séparateurs ;
 - les factures : arrondis par taux, mentions 2026, XML Factur-X ;
@@ -173,8 +188,10 @@ Ce projet est une base solide, pas un logiciel certifié. Avant tout usage en pr
 
 **À venir :**
 - [ ] Factur-X : embarquer le XML dans un **PDF/A-3** et raccorder une **plateforme agréée (PA)** pour l'émission et la réception
-- [ ] Import des relevés bancaires (CAMT.053, OFX) et rapprochement
-- [ ] Immobilisations et plans d'amortissement
+- [ ] Relevés bancaires au format CAMT.053 et connexion bancaire (DSP2)
+- [ ] Cessions d'immobilisations (plus-values) et amortissements dérogatoires
+- [ ] Écritures de régularisation assistées (FNP, FAE, CCA, PCA) avec extourne automatique
+- [ ] Paie
 - [ ] Liasse fiscale (EDI-TDFC) et télédéclaration de la TVA (EDI-TVA)
 - [ ] Portail client : dépôt de pièces justificatives et OCR
 - [ ] Interrogation des API SIRENE (INSEE) et VIES

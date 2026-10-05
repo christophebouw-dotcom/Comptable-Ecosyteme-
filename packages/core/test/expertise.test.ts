@@ -6,6 +6,7 @@ import {
   coefficientDegressif,
   compteAmortissement,
   computeCaf,
+  computeRatios,
   computeSig,
   controlerMission,
   controlesRevision,
@@ -89,6 +90,18 @@ describe("soldes intermédiaires de gestion", () => {
     expect(s.resultatNet).toBe(350_000);
     expect(s.chiffreAffaires).toBe(1_000_000);
     expect(computeCaf(ventes).caf).toBe(400_000);
+  });
+});
+
+describe("ratios", () => {
+  it("exclut les fournisseurs d'immobilisations du délai fournisseurs", () => {
+    const e: Ecriture[] = [
+      ...ventes,
+      { journal: "AC", date: "2026-04-01", libelle: "Four", pieceRef: "I1", lignes: [{ compte: "2154", debit: 5_000_000, credit: 0 }, { compte: "404", debit: 0, credit: 5_000_000 }] },
+    ];
+    const dpo = computeRatios(e).find((r) => r.code === "DPO")!;
+    // 4 000 € dus sur 4 800 € d'achats TTC estimés → 300 jours, sans la dette d'immobilisation
+    expect(dpo.valeur).toBe(300);
   });
 });
 

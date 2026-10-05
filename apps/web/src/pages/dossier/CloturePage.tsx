@@ -82,6 +82,27 @@ export function CloturePage() {
         </Card>
       </div>
 
+      {can("compta:write") && exercice.statut === "ouvert" && (
+        <Card title="Reprendre un dossier existant" subtitle="Import du FEC exporté par le logiciel précédent (écritures créées en brouillard)">
+          <div className="stack">
+            <p className="muted">Le fichier est d'abord contrôlé. Les journaux, comptes et tiers manquants sont créés. L'import est annulé en totalité si une seule écriture est invalide (hors exercice, déséquilibrée…).</p>
+            <input type="file" accept=".txt,.csv" aria-label="FEC à importer" onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              const buf = await file.arrayBuffer();
+              let text = new TextDecoder("utf-8").decode(buf);
+              if (text.includes("\uFFFD")) text = new TextDecoder("iso-8859-15").decode(buf);
+              await action.run(async () => {
+                const r = await api.post<{ ecritures: number; tiersCrees: number }>(`/api/dossiers/${dossier.id}/fec/import`, { content: text });
+                toast(`${r.ecritures} écriture(s) reprise(s) en brouillard, ${r.tiersCrees} tiers créé(s)`);
+                reload();
+              });
+            }} />
+          </div>
+        </Card>
+      )}
+
       <Card title="Clôture de l'exercice" subtitle={`${exercice.debut} → ${exercice.fin}`}>
         {exercice.statut === "cloture" ? (
           <div className="stack">

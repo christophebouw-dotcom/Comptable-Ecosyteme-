@@ -52,12 +52,16 @@ export function DossierLayout() {
         <NavLink to={base} end className={tab}>Synthèse</NavLink>
         {can("compta:write") && <NavLink to={`${base}/saisie`} className={tab}>Saisie</NavLink>}
         <NavLink to={`${base}/ecritures`} className={tab}>Écritures</NavLink>
+        <NavLink to={`${base}/banque`} className={tab}>Banque</NavLink>
+        <NavLink to={`${base}/immobilisations`} className={tab}>Immobilisations</NavLink>
         <NavLink to={`${base}/balance`} className={tab}>Balance</NavLink>
         <NavLink to={`${base}/grand-livre`} className={tab}>Grand livre</NavLink>
         <NavLink to={`${base}/etats`} className={tab}>États financiers</NavLink>
+        <NavLink to={`${base}/revision`} className={tab}>Révision</NavLink>
         <NavLink to={`${base}/tva`} className={tab}>TVA</NavLink>
         <NavLink to={`${base}/factures`} className={tab}>Factures</NavLink>
         <NavLink to={`${base}/tiers`} className={tab}>Tiers</NavLink>
+        <NavLink to={`${base}/mission`} className={tab}>Mission</NavLink>
         <NavLink to={`${base}/cloture`} className={tab}>Clôture & FEC</NavLink>
       </nav>
       <Outlet context={{ dossier: data, exercice, setExerciceId, reload, base } satisfies DossierCtx} />

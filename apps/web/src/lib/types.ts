@@ -46,6 +46,8 @@ export interface Dossier {
   brouillards?: number;
   validees?: number;
   prochainesEcheances?: Echeance[];
+  alertesMission?: { code: string; niveau: "bloquant" | "avertissement"; message: string }[];
+  lignesBancairesATraiter?: number;
   exercices?: Exercice[];
   journaux?: { code: string; libelle: string; type: string }[];
 }

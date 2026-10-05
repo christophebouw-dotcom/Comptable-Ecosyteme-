@@ -44,7 +44,22 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Format électronique structuré | Norme EN 16931 | `generateFacturX` (CII, profil EN 16931) | `facture.test.ts` |
 | Franchise en base | CGI art. 293 B | Mention automatique, taux 0 | `facture.ts` |
 
-## 4. RGPD
+## 4. Exercice professionnel de l'expert-comptable
+
+| Exigence | Fondement | Implémentation | Test |
+|---|---|---|---|
+| Lettre de mission préalable | Code de déontologie (décret 2012-432), art. 151 | `controlerMission`, écran Mission, alerte tableau de bord | `expertise.test.ts` |
+| Identification du client et des bénéficiaires effectifs | CMF L561-5, R561-1 | Champs obligatoires, alertes bloquantes | `expertise.test.ts` |
+| Vigilance adaptée au risque, PPE | CMF L561-6, L561-10 | Périodicité 12 / 24 / 36 mois, PPE → risque élevé | `expertise.test.ts` |
+| Amortissement linéaire prorata temporis | CGI art. 39-1-2° ; PCG 214-13 | `dotationPeriode` (30/360) | `expertise.test.ts` |
+| Amortissement dégressif | CGI art. 39 A | Coefficients, départ au 1er jour du mois, bascule en linéaire | `expertise.test.ts` |
+| Taux réduit d'IS des PME | CGI art. 219-I-b | `calculerIs` (42 500 € proratisés) | `expertise.test.ts` |
+| Plafonnement de l'imputation des déficits | CGI art. 209-I | 1 M€ + 50 % de l'excédent | `expertise.test.ts` |
+| Arrondi de l'IS à l'euro | CGI art. 1724 | `calculerIs` | `expertise.test.ts` |
+| Comptes d'attente soldés à la clôture | PCG art. 944-47 | Contrôle `ATTENTE` (bloquant) | `expertise.test.ts` |
+| Diligences de présentation des comptes | NP 2300 | `PROGRAMME_REVISION` par cycle | `api` expertise |
+
+## 5. RGPD
 
 | Exigence | Article | Implémentation | Test |
 |---|---|---|---|
@@ -69,7 +84,7 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Analyse d'impact | 35 | Indicateur `aipdRequise` (paie/NIR, LCB-FT) | — |
 | Aucun traceur, aucun transfert vers des tiers | 44 et s. ; loi I&L art. 82 | Aucune ressource externe (polices système, CSP `self`), cookie de session seul | En-têtes testés |
 
-## 5. Sécurité (référentiels CNIL)
+## 6. Sécurité (référentiels CNIL)
 
 | Exigence | Référence | Implémentation |
 |---|---|---|

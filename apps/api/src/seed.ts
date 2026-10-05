@@ -6,7 +6,9 @@
  * Les comptes de démonstration partagent le mot de passe SEED_PASSWORD
  * (par défaut « Demo-Compta-2026! »). Ne jamais utiliser en production.
  */
-import { REGISTRE_PAR_DEFAUT } from "@compta/core";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { REGISTRE_PAR_DEFAUT, cleReleve, parseReleveCsv } from "@compta/core";
 import { loadConfig } from "./config.js";
 import { createContext } from "./context.js";
 import { hashPassword } from "./security/crypto.js";
@@ -118,6 +120,31 @@ db.run(
     ],
   }),
   ids.collaborateur!,
+);
+
+// Immobilisation : le four acquis en mars.
+db.run(
+  "INSERT INTO immobilisations (dossier_id, compte, libelle, date_mise_en_service, valeur_ht, duree_annees, mode) VALUES (?, '2154', 'Four professionnel', ?, 1500000, 10, 'degressif')",
+  martin, `${year}-03-15`,
+);
+
+// Relevé bancaire d'exemple (dates ramenées à l'année courante).
+const csv = readFileSync(resolve(import.meta.dirname, "../../../docs/exemples/releve-banque-exemple.csv"), "utf8").replaceAll("/2026", `/${year}`);
+const releve = parseReleveCsv(csv);
+const releveId = db.run("INSERT INTO releves_bancaires (dossier_id, compte, fichier, format, nb_lignes, imported_by) VALUES (?, '512', 'releve-banque-exemple.csv', 'csv', ?, ?)", martin, releve.lignes.length, ids.collaborateur!).lastInsertRowid;
+for (const l of releve.lignes) {
+  db.run("INSERT INTO lignes_bancaires (dossier_id, releve_id, compte, date, libelle, montant, cle) VALUES (?, ?, '512', ?, ?, ?, ?)", martin, releveId, l.date, l.libelle, l.montant, cleReleve(l));
+}
+
+// Mission : en règle pour Martin, absente pour Studio Lumière (alerte).
+db.run(
+  "INSERT INTO missions (dossier_id, data, updated_at, updated_by) VALUES (?, ?, ?, ?)",
+  martin,
+  JSON.stringify({
+    types: ["tenue_presentation", "social"], lettreSigneeLe: `${year}-01-05`, honorairesAnnuelsHT: 420_000, risqueLcbft: "faible",
+    identiteVerifieeLe: `${year}-01-05`, beneficiairesEffectifs: "Paul Martin, gérant, 100 % des parts", revueLcbftLe: `${year}-01-05`, ppe: false,
+  }),
+  new Date().toISOString(), ids.expert!,
 );
 
 for (const t of REGISTRE_PAR_DEFAUT) db.run("INSERT INTO registre_traitements (reference, data) VALUES (?, ?)", t.reference, JSON.stringify(t));

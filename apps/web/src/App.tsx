@@ -8,6 +8,10 @@ import { ConfidentialitePage } from "./pages/ConfidentialitePage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DossierLayout } from "./pages/dossier/DossierLayout";
 import { BalancePage } from "./pages/dossier/BalancePage";
+import { BanquePage } from "./pages/dossier/BanquePage";
+import { ImmobilisationsPage } from "./pages/dossier/ImmobilisationsPage";
+import { MissionPage } from "./pages/dossier/MissionPage";
+import { RevisionPage } from "./pages/dossier/RevisionPage";
 import { CloturePage } from "./pages/dossier/CloturePage";
 import { EcrituresPage } from "./pages/dossier/EcrituresPage";
 import { EtatsPage } from "./pages/dossier/EtatsPage";
@@ -39,6 +43,10 @@ export function App() {
             <Route path="saisie" element={<SaisiePage />} />
             <Route path="saisie/:ecritureId" element={<SaisiePage />} />
             <Route path="ecritures" element={<EcrituresPage />} />
+            <Route path="banque" element={<BanquePage />} />
+            <Route path="immobilisations" element={<ImmobilisationsPage />} />
+            <Route path="revision" element={<RevisionPage />} />
+            <Route path="mission" element={<MissionPage />} />
             <Route path="balance" element={<BalancePage />} />
             <Route path="grand-livre" element={<GrandLivrePage />} />
             <Route path="etats" element={<EtatsPage />} />

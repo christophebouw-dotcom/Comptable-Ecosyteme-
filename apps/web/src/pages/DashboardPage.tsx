@@ -23,6 +23,7 @@ export function DashboardPage() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 8);
   const brouillards = (dossiers.data ?? []).reduce((a, d) => a + (d.brouillards ?? 0), 0);
+  const nonConformes = (dossiers.data ?? []).filter((d) => (d.alertesMission ?? []).some((a) => a.niveau === "bloquant"));
   const hour = new Date().getHours();
 
   return (
@@ -33,7 +34,7 @@ export function DashboardPage() {
         <div className="grid grid-4" style={{ marginBottom: 16 }}>
           <Stat label="Dossiers actifs" value={dossiers.data?.length ?? "…"} />
           <Stat label="Écritures en brouillard" value={brouillards} hint="À valider par un expert-comptable" tone={brouillards > 0 ? "danger" : undefined} />
-          <Stat label="Écritures validées" value={(dossiers.data ?? []).reduce((a, d) => a + (d.validees ?? 0), 0)} hint="Intangibles et chaînées" />
+          <Stat label="Mission / LCB-FT à régulariser" value={nonConformes.length} hint="Lettre de mission, identification, bénéficiaires effectifs" tone={nonConformes.length ? "danger" : "ok"} />
           <Stat label="Prochaine échéance" value={echeances[0] ? <DateFr iso={echeances[0].date} /> : "—"} hint={echeances[0]?.libelle} />
         </div>
       )}
@@ -63,7 +64,11 @@ export function DashboardPage() {
                         <div className="subtle">SIREN {d.siren} · {d.formeJuridique} · {d.impot}</div>
                       </td>
                       <td className="actions">
-                        {(d.brouillards ?? 0) > 0 ? <Badge tone="warn" dot>{d.brouillards} brouillard(s)</Badge> : <Badge tone="ok" dot>À jour</Badge>}
+                        <div className="row" style={{ justifyContent: "flex-end", gap: 6 }}>
+                          {(d.alertesMission ?? []).some((a) => a.niveau === "bloquant") && <Link to={`/dossiers/${d.id}/mission`}><Badge tone="danger" dot>Mission / LCB-FT</Badge></Link>}
+                          {(d.lignesBancairesATraiter ?? 0) > 0 && <Link to={`/dossiers/${d.id}/banque`}><Badge tone="info">{d.lignesBancairesATraiter} op. bancaire(s)</Badge></Link>}
+                          {(d.brouillards ?? 0) > 0 ? <Badge tone="warn" dot>{d.brouillards} brouillard(s)</Badge> : <Badge tone="ok" dot>À jour</Badge>}
+                        </div>
                       </td>
                     </tr>
                   ))}
