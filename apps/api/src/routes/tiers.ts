@@ -105,7 +105,7 @@ export async function tiersRoutes(app: FastifyInstance) {
     if (id) {
       db.run(
         `UPDATE tiers SET type = ?, compte_aux = ?, nom = ?, personne_physique = ?, professionnel = ?, siren = ?, tva_intra = ?, adresse = ?,
-           code_postal = ?, ville = ?, pays = ?, email_enc = ?, email_hash = ?, telephone_enc = ?, iban_enc = ?, fin_relation = ?
+           code_postal = ?, ville = ?, pays = ?, email_enc = ?, email_hash = ?, telephone_enc = ?, iban_enc = COALESCE(?, iban_enc), fin_relation = ?
          WHERE id = ? AND dossier_id = ?`,
         ...params, id, dossierId,
       );

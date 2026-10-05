@@ -162,8 +162,11 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  // Pas d'erreur 401 pour un visiteur non connecté : l'interface interroge cette route au démarrage.
   app.get("/api/auth/me", async (req) => {
-    const u = requireUser(req);
+    const u = req.user;
+    if (!u) return { user: null };
+    if (u.totpEnabled && !u.mfaOk) return { user: null, mfaRequired: true };
     return { user: publicUser(u) };
   });
 

@@ -47,7 +47,8 @@ const eurFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currenc
 
 /** Formate des centimes au format français : « 1 234,56 € ». */
 export function formatEUR(cents: Cents): string {
-  return eurFormatter.format(cents / 100);
+  // « cents || 0 » normalise -0 (issu d'une négation de zéro) pour éviter « -0,00 € ».
+  return eurFormatter.format((cents || 0) / 100);
 }
 
 /**

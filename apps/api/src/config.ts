@@ -1,4 +1,6 @@
 import { randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 export interface AppConfig {
   env: "development" | "production" | "test";
@@ -27,11 +29,10 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     if (masterKey.length !== 32) throw new Error("APP_MASTER_KEY doit encoder exactement 32 octets en base64");
   } else if (env === "production") {
     throw new Error("APP_MASTER_KEY est obligatoire en production (générez-la avec : openssl rand -base64 32)");
+  } else if (overrides.masterKey) {
+    masterKey = overrides.masterKey;
   } else {
-    masterKey = overrides.masterKey ?? randomBytes(32);
-    if (env === "development" && !overrides.masterKey) {
-      console.warn("⚠️  APP_MASTER_KEY absente : clé éphémère générée. Les données chiffrées seront illisibles au redémarrage.");
-    }
+    masterKey = devMasterKey(overrides.databasePath ?? process.env.DATABASE_PATH ?? "data/compta.db");
   }
   return {
     env,
@@ -46,4 +47,20 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     logLevel: process.env.LOG_LEVEL ?? (env === "test" ? "silent" : "info"),
     ...overrides,
   };
+}
+
+/**
+ * En développement uniquement : clé persistée à côté de la base (fichier
+ * ignoré par git, permissions 0600) pour que les données chiffrées restent
+ * lisibles d'un redémarrage à l'autre.
+ */
+function devMasterKey(databasePath: string): Buffer {
+  if (databasePath === ":memory:") return randomBytes(32);
+  const file = join(dirname(databasePath), ".dev-master-key");
+  if (existsSync(file)) return Buffer.from(readFileSync(file, "utf8").trim(), "base64");
+  mkdirSync(dirname(file), { recursive: true });
+  const key = randomBytes(32);
+  writeFileSync(file, key.toString("base64"), { mode: 0o600 });
+  console.warn(`⚠️  APP_MASTER_KEY absente : clé de développement créée dans ${file}. Ne pas utiliser en production.`);
+  return key;
 }

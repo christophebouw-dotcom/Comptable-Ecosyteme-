@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allocate, applyRate, formatDecimalComma, toCents } from "../src/index.js";
+import { allocate, applyRate, formatDecimalComma, formatEUR, toCents } from "../src/index.js";
 
 describe("montants", () => {
   it("convertit sans erreur d'arrondi flottant", () => {
@@ -18,6 +18,9 @@ describe("montants", () => {
     const parts = allocate(10000, [1, 1, 1]);
     expect(parts).toEqual([3334, 3333, 3333]);
     expect(parts.reduce((a, b) => a + b)).toBe(10000);
+  });
+  it("n'affiche jamais « -0,00 € »", () => {
+    expect(formatEUR(-0)).toBe(formatEUR(0));
   });
   it("formate pour le FEC", () => {
     expect(formatDecimalComma(123456)).toBe("1234,56");
