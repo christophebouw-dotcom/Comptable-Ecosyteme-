@@ -82,9 +82,9 @@ export class RgpdService {
   }
 
   /** Inventaire des données d'une personne, par catégorie de conservation. */
-  inventaire(email: string): DonneeDetenue[] {
+  inventaire(email: string): (DonneeDetenue & { tiersId?: number })[] {
     const { db } = this.ctx;
-    const out: DonneeDetenue[] = [];
+    const out: (DonneeDetenue & { tiersId?: number })[] = [];
     const today = this.today();
     for (const t of this.tiersParEmail(email)) {
       const derniereFin = db.get<{ fin: string | null }>(
@@ -96,12 +96,13 @@ export class RgpdService {
       const factureMax = db.get<{ d: string | null }>("SELECT MAX(date_emission) AS d FROM factures WHERE tiers_id = ? AND statut <> 'brouillon'", t.id)?.d;
       const depart = [derniereFin, factureMax ? `${factureMax.slice(0, 4)}-12-31` : null].filter(Boolean).sort().at(-1);
       if (depart) {
-        out.push({ categorie: "pieces_comptables", description: `Écritures et factures (fiche tiers ${t.compte_aux}, nom et adresse)`, dateDepart: depart });
+        out.push({ categorie: "pieces_comptables", description: `Écritures et factures (fiche tiers ${t.compte_aux}, nom et adresse)`, dateDepart: depart, tiersId: t.id });
       }
       out.push({
         categorie: "donnees_clients_commercial",
         description: `Coordonnées de contact et bancaires (fiche tiers ${t.compte_aux})`,
         dateDepart: t.fin_relation ?? today,
+        tiersId: t.id,
       });
     }
     const h = this.ctx.cipher.blindIndex(email)!;
@@ -119,18 +120,27 @@ export class RgpdService {
     return analyserEffacement(this.inventaire(email), this.today());
   }
 
+  /** Décisions associées à leur élément d'inventaire (analyserEffacement préserve l'ordre). */
+  private decisionsDetaillees(email: string) {
+    const inventaire = this.inventaire(email);
+    const decisions = analyserEffacement(inventaire, this.today());
+    return { decisions, lies: inventaire.map((item, i) => ({ item, decision: decisions[i]! })) };
+  }
+
   /**
    * Exécute un effacement : les données sans obligation de conservation sont
    * supprimées ; les autres sont placées en limitation (art. 18).
    */
   executerEffacement(email: string): { decisions: DecisionEffacement[]; actions: string[] } {
     const { db } = this.ctx;
-    const decisions = this.analyserEffacement(email);
+    const { decisions, lies } = this.decisionsDetaillees(email);
     const actions: string[] = [];
     const now = this.ctx.now().toISOString();
     db.transaction(() => {
       for (const t of this.tiersParEmail(email)) {
-        const comptable = decisions.some((d) => d.categorie === "pieces_comptables" && d.decision === "conserver_limiter" && d.description.includes(t.compte_aux));
+        const comptable = lies.some(
+          ({ item, decision }) => item.tiersId === t.id && item.categorie === "pieces_comptables" && decision.decision === "conserver_limiter",
+        );
         if (comptable) {
           db.run("UPDATE tiers SET email_enc = NULL, email_hash = NULL, telephone_enc = NULL, iban_enc = NULL, restricted = 1 WHERE id = ?", t.id);
           actions.push(`Tiers ${t.compte_aux} : coordonnées effacées, nom et adresse conservés en accès restreint (obligation comptable)`);

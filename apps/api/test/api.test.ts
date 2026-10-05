@@ -370,6 +370,26 @@ describe("RGPD", () => {
     expect((await expert.req("GET", `/api/dossiers/${dossierId}/integrite`)).body.ok).toBe(true);
   });
 
+  it("rattache chaque décision d'effacement à la bonne fiche (codes C1 / C12)", async () => {
+    const email = "homonyme@exemple.fr";
+    const c12 = await collab.req("POST", `/api/dossiers/${dossierId}/tiers`, { type: "client", compteAux: "C12", nom: "Client douze", personnePhysique: true, email });
+    const c1 = await collab.req("POST", `/api/dossiers/${dossierId}/tiers`, { type: "client", compteAux: "C1", nom: "Client un", personnePhysique: true, email });
+    const e = await collab.req("POST", `/api/dossiers/${dossierId}/ecritures`, {
+      journal: "VE", date: "2027-02-01", libelle: "Vente C12", pieceRef: "V12",
+      lignes: [{ compte: "411", compteAux: "C12", debit: 1000 }, { compte: "706", credit: 1000 }],
+    });
+    expect(e.status).toBe(201);
+    await expert.req("POST", `/api/dossiers/${dossierId}/ecritures/valider`, { ids: [e.body.id] });
+    const d = await dpo.req("POST", "/api/rgpd/demandes", { type: "effacement", nom: "Homonyme", email });
+    await dpo.req("PATCH", `/api/rgpd/demandes/${d.body.id}`, { identiteVerifiee: true });
+    await dpo.req("POST", `/api/rgpd/demandes/${d.body.id}/traiter`);
+    const t12 = env.ctx.db.get<{ nom: string; restricted: number }>("SELECT nom, restricted FROM tiers WHERE id = ?", c12.body.id)!;
+    const t1 = env.ctx.db.get<{ nom: string; anonymized_at: string | null }>("SELECT nom, anonymized_at FROM tiers WHERE id = ?", c1.body.id)!;
+    expect(t12).toEqual({ nom: "Client douze", restricted: 1 }); // pièces comptables : conservé, limité
+    expect(t1.nom).toBe("[anonymisé]"); // aucune écriture : anonymisé
+    expect(t1.anonymized_at).not.toBeNull();
+  });
+
   it("évalue une violation et calcule l'échéance de 72 h", async () => {
     const res = await dpo.req("POST", "/api/rgpd/violations", {
       titre: "Envoi d'un FEC au mauvais destinataire",
