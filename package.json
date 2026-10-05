@@ -1,0 +1,30 @@
+{
+  "name": "comptable-ecosysteme",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Écosystème logiciel pour cabinets d'expertise comptable — comptabilité, FEC, TVA, facturation électronique et conformité RGPD.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace @compta/api & npm run dev --workspace @compta/web",
+    "dev:api": "npm run dev --workspace @compta/api",
+    "dev:web": "npm run dev --workspace @compta/web",
+    "build": "npm run build --workspace @compta/web",
+    "start": "npm run start --workspace @compta/api",
+    "seed": "npm run seed --workspace @compta/api",
+    "test": "vitest run",
+    "typecheck": "tsc -p packages/core && tsc -p apps/api && tsc -p apps/web"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
