@@ -263,9 +263,23 @@ input[type="checkbox"] { width: 16px; height: 16px; min-height: 0; accent-color:
 .hash { font-family: var(--mono); font-size: 11.5px; color: var(--text-3); word-break: break-all; }
 pre.letter { white-space: pre-wrap; font-family: var(--font); background: var(--surface-2); padding: 16px; border-radius: var(--radius); margin: 0; font-size: 13.5px; }
 
+/* -- Pièces & IA -------------------------------------------------------- */
+.dropzone { display: flex; align-items: center; justify-content: center; text-align: center; padding: 26px; border: 2px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--surface); cursor: pointer; transition: border-color .15s, background .15s; }
+.dropzone svg { width: 26px; height: 26px; display: block; margin: 0 auto 6px; color: var(--brand-2); }
+.dropzone:hover, .dropzone.survol { border-color: var(--info); background: var(--info-soft); }
+.progress { height: 6px; border-radius: 3px; background: var(--surface-2); margin-top: 10px; width: 320px; overflow: hidden; }
+.progress > div { height: 100%; background: var(--info); transition: width .3s; }
+.pieces-layout { display: grid; grid-template-columns: 320px 1fr; gap: 16px; align-items: start; }
+.piece-list { list-style: none; margin: 0; padding: 0; max-height: 760px; overflow-y: auto; }
+.piece-list li { padding: 11px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.piece-list li:hover { background: var(--surface-2); }
+.piece-list li.active { background: var(--info-soft); box-shadow: inset 3px 0 0 var(--info); }
+.ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
 @media (max-width: 1100px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pieces-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
   .shell { grid-template-columns: 1fr; }

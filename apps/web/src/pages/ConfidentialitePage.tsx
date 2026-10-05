@@ -38,6 +38,9 @@ export function ConfidentialitePage() {
         <Card title="Destinataires et hébergement">
           <p>Collaborateurs habilités du cabinet, administrations (DGFiP, URSSAF) dans le cadre des obligations déclaratives, commissaire aux comptes le cas échéant. Les données sont hébergées dans l'Union européenne ; aucun transfert hors UE. L'application ne charge aucune ressource tierce et ne dépose aucun traceur : seul un cookie de session strictement nécessaire est utilisé (exempté de consentement, art. 82 de la loi Informatique et Libertés).</p>
         </Card>
+        <Card title="Intelligence artificielle">
+          <p>Lorsque votre lettre de mission le prévoit, les pièces justificatives (factures, tickets) et les libellés bancaires peuvent être lus par un service d'intelligence artificielle (Claude, édité par Anthropic) afin d'en extraire les données comptables. Anthropic agit en qualité de sous-traitant ; le transfert vers les États-Unis est encadré par les garanties prévues aux articles 45 et 46 du RGPD. L'IA ne prend aucune décision : chaque proposition est contrôlée puis validée par un collaborateur du cabinet. Vous pouvez refuser ce traitement sans conséquence sur la mission.</p>
+        </Card>
         <Card title="Sécurité">
           <p>Chiffrement des données bancaires et de contact (AES-256-GCM), mots de passe hachés (scrypt), double authentification, contrôle d'accès par profil et par dossier, journal d'audit infalsifiable, verrouillage après échecs répétés, sessions limitées dans le temps.</p>
         </Card>

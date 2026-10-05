@@ -14,6 +14,7 @@ interface LigneBancaire {
   montant: number;
   statut: "a_traiter" | "rapprochee" | "ignoree";
   suggestion: { compte: string; compteAux?: string | null } | null;
+  ia?: { justification: string; confiance: number };
 }
 
 interface BanqueData {
@@ -30,6 +31,7 @@ export function BanquePage() {
   const { data, error, loading, reload } = useApi<BanqueData>(`/api/dossiers/${dossier.id}/banque`);
   const tiers = useApi<Tiers[]>(`/api/dossiers/${dossier.id}/tiers`);
   const [filtre, setFiltre] = useState<"a_traiter" | "tout">("a_traiter");
+  const [suggestionsIA, setSuggestionsIA] = useState<Record<number, { compte: string; compteAux: string | null; justification: string; confiance: number }>>({});
   const action = useAction();
   const base = `/api/dossiers/${dossier.id}/banque`;
 
@@ -65,6 +67,13 @@ export function BanquePage() {
               <Icon.download /> Importer un relevé (CSV, OFX)
               <input type="file" accept=".csv,.txt,.ofx,.qfx" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) void importer(e.target.files[0]); e.target.value = ""; }} />
             </label>
+            {dossier.iaAutorisee && (
+              <button className="btn" disabled={action.pending || !data?.etat.nbATraiter} onClick={() => action.run(async () => {
+                const r = await api.post<{ suggestions: { id: number; compte: string; compteAux: string | null; justification: string; confiance: number }[] }>(`${base}/suggestions-ia`, {});
+                setSuggestionsIA(Object.fromEntries(r.suggestions.map((s) => [s.id, s])));
+                toast(`${r.suggestions.length} imputation(s) proposée(s) par l'IA — à vérifier avant de comptabiliser`);
+              })}>Suggestions IA</button>
+            )}
             <button className="btn primary" disabled={action.pending || !data?.etat.nbATraiter} onClick={() => action.run(async () => {
               const r = await api.post<{ rapprochees: number; restantes: number }>(`${base}/rapprochement-auto`, {});
               toast(`${r.rapprochees} opération(s) rapprochée(s) automatiquement`);
@@ -92,7 +101,11 @@ export function BanquePage() {
             <table>
               <thead><tr><th>Date</th><th>Libellé bancaire</th><th className="num">Montant</th><th>Imputation</th><th /></tr></thead>
               <tbody>
-                {lignes.map((l) => <LigneRow key={l.id} ligne={l} base={base} onDone={reload} canWrite={can("compta:write")} />)}
+                {lignes.map((l) => {
+                  const ia = suggestionsIA[l.id];
+                  const ligne = ia && !l.suggestion ? { ...l, suggestion: { compte: ia.compte, compteAux: ia.compteAux }, ia } : l;
+                  return <LigneRow key={`${l.id}-${ia ? "ia" : ""}`} ligne={ligne} base={base} onDone={reload} canWrite={can("compta:write")} />;
+                })}
               </tbody>
             </table>
           </div>
@@ -147,7 +160,7 @@ function LigneRow({ ligne: l, base, onDone, canWrite }: { ligne: LigneBancaire; 
           <div className="row" style={{ flexWrap: "nowrap" }}>
             <input list="pcg-banque" value={compte} onChange={(e) => setCompte(e.target.value.toUpperCase())} placeholder="Compte" style={{ width: 100 }} aria-label="Compte d'imputation" />
             {collectif && <input list="tiers-banque" value={aux} onChange={(e) => setAux(e.target.value.toUpperCase())} placeholder="Tiers" style={{ width: 110 }} aria-label="Compte auxiliaire" />}
-            {l.suggestion && <Badge tone="info">suggéré</Badge>}
+            {l.ia ? <span title={l.ia.justification}><Badge tone={l.ia.confiance >= 0.8 ? "info" : "warn"}>IA {Math.round(l.ia.confiance * 100)} %</Badge></span> : l.suggestion && <Badge tone="info">suggéré</Badge>}
             <label className="check" title="Mémoriser pour les prochains relevés" style={{ fontSize: 12 }}><input type="checkbox" checked={memoriser} onChange={(e) => setMemoriser(e.target.checked)} /> règle</label>
           </div>
         ) : <span className="subtle">{l.suggestion?.compte ?? "—"}</span>}

@@ -91,6 +91,7 @@ export function MissionPage() {
           </div>
         </Card>
       </div>
+      <IaCard />
       {!lecture && (
         <div className="form-actions">
           <button className="btn primary" disabled={pending} onClick={() => run(async () => {
@@ -101,5 +102,36 @@ export function MissionPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function IaCard() {
+  const { dossier, reload } = useDossier();
+  const { can } = useAuth();
+  const toast = useToast();
+  const statut = useApi<{ active: boolean; modele: string | null }>("/api/ia/statut");
+  const { pending, error, run } = useAction();
+  const autorisee = !!dossier.iaAutorisee;
+  return (
+    <Card title="Assistance par intelligence artificielle" subtitle="Lecture automatique des pièces et suggestions d'imputation" actions={autorisee ? <Badge tone="ok">Autorisée</Badge> : <Badge>Non autorisée</Badge>}>
+      <div className="stack">
+        <p className="muted">
+          Lorsque l'assistance est autorisée, les pièces déposées (factures, tickets) et les libellés bancaires de ce dossier sont transmis au service d'IA Claude
+          (Anthropic, sous-traitant au sens de l'art. 28 du RGPD) pour en extraire les données. Aucune écriture n'est validée automatiquement : chaque proposition est contrôlée puis validée par le cabinet.
+          Recueillez l'accord du client (clause de la lettre de mission) avant d'activer.
+        </p>
+        {statut.data && !statut.data.active && <Alert tone="info">Aucun service d'IA n'est configuré sur ce serveur : l'autorisation sera effective dès sa mise en service.</Alert>}
+        <ErrorBox error={error} />
+        {can("dossiers:write") && (
+          <div>
+            <button className={`btn ${autorisee ? "danger" : "primary"}`} disabled={pending} onClick={() => run(async () => {
+              await api.put(`/api/dossiers/${dossier.id}/ia`, { autorisee: !autorisee });
+              toast(autorisee ? "Assistance IA retirée pour ce dossier" : "Assistance IA autorisée pour ce dossier");
+              reload();
+            })}>{autorisee ? "Retirer l'autorisation" : "Autoriser l'assistance IA"}</button>
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }

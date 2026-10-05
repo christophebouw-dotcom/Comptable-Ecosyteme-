@@ -42,6 +42,7 @@ export interface Dossier {
   ibanMasque: string | null;
   bic: string | null;
   prefixeFacture: string;
+  iaAutorisee?: boolean;
   exerciceCourant?: { id: number; debut: string; fin: string } | null;
   brouillards?: number;
   validees?: number;

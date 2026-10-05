@@ -51,6 +51,7 @@ export function DossierLayout() {
       <nav className="tabs" aria-label="Sections du dossier">
         <NavLink to={base} end className={tab}>Synthèse</NavLink>
         {can("compta:write") && <NavLink to={`${base}/saisie`} className={tab}>Saisie</NavLink>}
+        <NavLink to={`${base}/pieces`} className={tab}>Pièces</NavLink>
         <NavLink to={`${base}/ecritures`} className={tab}>Écritures</NavLink>
         <NavLink to={`${base}/banque`} className={tab}>Banque</NavLink>
         <NavLink to={`${base}/immobilisations`} className={tab}>Immobilisations</NavLink>

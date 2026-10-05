@@ -43,6 +43,21 @@ Comptabilité en partie double aux écritures intangibles, FEC conforme, TVA, fa
 | **Mission et LCB-FT** | Lettre de mission (déontologie, art. 151), identification du client et des bénéficiaires effectifs, niveau de risque, PPE, périodicité de revue ; alertes sur le tableau de bord |
 | **Reprise de dossier** | Import du FEC d'un autre logiciel : contrôle préalable, création des journaux, comptes et tiers, tout ou rien |
 
+### Pièces justificatives et intelligence artificielle
+Déposez les factures, tickets et notes de frais (PDF, photos, XML) par glisser-déposer, plusieurs à la fois :
+
+| | |
+|---|---|
+| **Factures électroniques** | Les XML Factur-X / CII (format de la réforme 2026) sont lus **exactement**, sans IA |
+| **PDF et photos** | Lecture par **Claude** (Anthropic) en sortie structurée : fournisseur, SIREN, n° de facture, dates, ventilation de TVA, totaux, compte proposé |
+| **Contrôles** | Chaque lecture repasse par des contrôles **déterministes** : HT + TVA = TTC, calcul de TVA par taux, SIREN, TVA intracommunautaire, IBAN (fraude au RIB), date dans l'exercice, seuil d'immobilisation |
+| **Imputation** | Fournisseur reconnu par SIREN, TVA ou nom ; **compte habituel du dossier prioritaire** sur la proposition de l'IA ; nouveau fournisseur créé automatiquement |
+| **Validation** | L'IA ne valide jamais rien : l'écriture est créée en brouillard après vérification humaine, puis validée par l'expert-comptable |
+| **Archivage** | Justificatif chiffré (AES-256-GCM), dédoublonné par empreinte SHA-256, conservé 10 ans, consultable depuis l'écriture |
+| **Banque** | Suggestions d'imputation par l'IA pour les opérations non reconnues, avec niveau de confiance |
+
+L'IA est **désactivée par défaut** : il faut une clé d'API (`ANTHROPIC_API_KEY`) sur le serveur et une **autorisation dossier par dossier** (onglet Mission), après accord du client. Chaque appel est tracé au journal d'audit (modèle, volume), sans le contenu. Le traitement figure au registre (T-08, sous-traitance ultérieure, transfert encadré).
+
 ### Fiscalité et facturation
 - **TVA** : préparation de la CA3/CA12 (collectée par taux, déductible ABS et immobilisations, crédit reporté) et écriture de liquidation.
 - **Factures conformes** : contrôle des mentions obligatoires (CGI ann. II art. 242 nonies A, C. com. L441-9), y compris les **nouvelles mentions de la réforme 2026** : SIREN du client, catégorie d'opération, option pour la TVA sur les débits.
@@ -157,7 +172,7 @@ Voir [SECURITY.md](SECURITY.md). Points clés : sessions opaques (seule l'emprei
 npm test
 ```
 
-**104 tests** couvrent notamment :
+**121 tests** couvrent notamment :
 - le moteur comptable : équilibre, bilan équilibré, à-nouveaux, contre-passation, lettrage ;
 - le FEC : un FEC généré passe son propre contrôle, avec les deux séparateurs ;
 - les factures : arrondis par taux, mentions 2026, XML Factur-X ;
@@ -193,7 +208,9 @@ Ce projet est une base solide, pas un logiciel certifié. Avant tout usage en pr
 - [ ] Écritures de régularisation assistées (FNP, FAE, CCA, PCA) avec extourne automatique
 - [ ] Paie
 - [ ] Liasse fiscale (EDI-TDFC) et télédéclaration de la TVA (EDI-TVA)
-- [ ] Portail client : dépôt de pièces justificatives et OCR
+- [ ] Portail client : dépôt des pièces par le client lui-même
+- [ ] Extraction du XML embarqué dans les PDF Factur-X (aujourd'hui : XML seul, ou lecture IA du PDF)
+- [ ] Traitement des pièces en arrière-plan (file d'attente) pour les dépôts de plusieurs centaines de documents
 - [ ] Interrogation des API SIRENE (INSEE) et VIES
 - [ ] Rotation de la clé maîtresse (le format chiffré est déjà versionné `v1.`)
 - [ ] Base PostgreSQL pour les déploiements multi-instances

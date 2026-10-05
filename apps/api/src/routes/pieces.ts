@@ -198,7 +198,11 @@ export async function pieceRoutes(app: FastifyInstance) {
     reply
       .header("Content-Type", p.mime)
       .header("Content-Disposition", `inline; filename="${encodeURIComponent(p.nom_fichier)}"`)
-      .header("Content-Security-Policy", "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+      // La visionneuse PDF intégrée du navigateur a besoin d'une CSP permissive ;
+      // les images et le XML restent sous une CSP fermée. Affichage limité à l'application.
+      .header("Content-Security-Policy", p.mime === "application/pdf" ? "frame-ancestors 'self'" : "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; frame-ancestors 'self'")
+      .header("X-Frame-Options", "SAMEORIGIN")
+      .header("Cache-Control", "private, no-store");
     return Buffer.from(cipher.decrypt(p.contenu_enc)!, "base64");
   });
 

@@ -59,7 +59,18 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Comptes d'attente soldés à la clôture | PCG art. 944-47 | Contrôle `ATTENTE` (bloquant) | `expertise.test.ts` |
 | Diligences de présentation des comptes | NP 2300 | `PROGRAMME_REVISION` par cycle | `api` expertise |
 
-## 5. RGPD
+## 5. Intelligence artificielle
+
+| Exigence | Fondement | Implémentation | Test |
+|---|---|---|---|
+| Sous-traitance ultérieure autorisée par le client | RGPD art. 28.2 et 28.4 | Autorisation par dossier (`ia_autorisee`), tracée | `pieces.test.ts` |
+| Transfert hors UE encadré | RGPD art. 44 à 46 | Registre T-08 (DPF / CCT), page de confidentialité | — |
+| Minimisation | RGPD art. 5.1.c | Seule la pièce ou le libellé bancaire est transmis ; aucun contenu au journal | `pieces.test.ts` |
+| Pas de décision automatisée | RGPD art. 22 ; AI Act (transparence) | Proposition en brouillard, contrôles déterministes, validation humaine ; origine affichée (« Lecture IA », confiance) | `pieces.test.ts` |
+| Sortie du modèle non fiable par principe | Bonne pratique | Filtrage serveur des comptes, tiers et identifiants proposés | `pieces.test.ts` |
+| Conservation des justificatifs | C. com. L123-22 | Pièce comptabilisée non supprimable (trigger) | `pieces.test.ts` |
+
+## 6. RGPD
 
 | Exigence | Article | Implémentation | Test |
 |---|---|---|---|
@@ -84,7 +95,7 @@ Chaque exigence est reliée à son fondement juridique, à son implémentation e
 | Analyse d'impact | 35 | Indicateur `aipdRequise` (paie/NIR, LCB-FT) | — |
 | Aucun traceur, aucun transfert vers des tiers | 44 et s. ; loi I&L art. 82 | Aucune ressource externe (polices système, CSP `self`), cookie de session seul | En-têtes testés |
 
-## 6. Sécurité (référentiels CNIL)
+## 7. Sécurité (référentiels CNIL)
 
 | Exigence | Référence | Implémentation |
 |---|---|---|

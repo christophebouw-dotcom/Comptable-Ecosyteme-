@@ -11,6 +11,7 @@ import { BalancePage } from "./pages/dossier/BalancePage";
 import { BanquePage } from "./pages/dossier/BanquePage";
 import { ImmobilisationsPage } from "./pages/dossier/ImmobilisationsPage";
 import { MissionPage } from "./pages/dossier/MissionPage";
+import { PiecesPage } from "./pages/dossier/PiecesPage";
 import { RevisionPage } from "./pages/dossier/RevisionPage";
 import { CloturePage } from "./pages/dossier/CloturePage";
 import { EcrituresPage } from "./pages/dossier/EcrituresPage";
@@ -43,6 +44,7 @@ export function App() {
             <Route path="saisie" element={<SaisiePage />} />
             <Route path="saisie/:ecritureId" element={<SaisiePage />} />
             <Route path="ecritures" element={<EcrituresPage />} />
+            <Route path="pieces" element={<PiecesPage />} />
             <Route path="banque" element={<BanquePage />} />
             <Route path="immobilisations" element={<ImmobilisationsPage />} />
             <Route path="revision" element={<RevisionPage />} />
