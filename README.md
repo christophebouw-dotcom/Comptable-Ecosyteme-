@@ -87,13 +87,23 @@ L'IA est **désactivée par défaut** : il faut une clé d'API (`ANTHROPIC_API_K
 
 ## Démarrage rapide
 
-Prérequis : **Node.js ≥ 22.13**. Aucune base de données à installer : SQLite est intégré à Node.
+Prérequis : **Node.js 22.13 ou plus récent** (version « LTS » sur [nodejs.org](https://nodejs.org)). Vérifiez avec `node -v`. Aucune base de données à installer : SQLite est intégré à Node.
+
+**Sur Mac, le plus simple** : double-cliquez sur `Démarrer (Mac).command`. Il vérifie Node.js, installe les dépendances, crée la base de démonstration et ouvre le navigateur. Au premier lancement, macOS peut demander une confirmation : clic droit sur le fichier → Ouvrir.
+
+**En ligne de commande** :
 
 ```bash
 npm install
-npm run seed      # base de démonstration (data/compta.db)
-npm run dev       # API sur :3000 + interface sur http://localhost:5173
+npm run demarrer  # vérifie l'environnement, crée la base de démo si besoin, lance tout
 ```
+
+Puis ouvrez http://localhost:5173 et **laissez le Terminal ouvert** : fermer la fenêtre arrête l'application.
+
+**Si http://localhost:5173 ne répond pas :**
+1. `node -v` affiche une version inférieure à 22.13 → installez la version LTS depuis nodejs.org, rouvrez le Terminal.
+2. `npm run verifier` indique ce qui manque.
+3. Le Terminal doit afficher `Local: http://localhost:5173/` et `Server listening at http://127.0.0.1:3000` ; sinon, le message d'erreur juste au-dessus indique la cause.
 
 Comptes de démonstration (mot de passe `Demo-Compta-2026!`) :
 

@@ -20,7 +20,12 @@
     "start": "npm run start --workspace @compta/api",
     "seed": "npm run seed --workspace @compta/api",
     "test": "vitest run",
-    "typecheck": "tsc -p packages/core && tsc -p apps/api && tsc -p apps/web"
+    "typecheck": "tsc -p packages/core && tsc -p apps/api && tsc -p apps/web",
+    "verifier": "node scripts/verifier.mjs",
+    "demarrer": "node scripts/verifier.mjs && node scripts/demarrer.mjs",
+    "predev": "node scripts/verifier.mjs",
+    "preseed": "node scripts/verifier.mjs",
+    "prestart": "node scripts/verifier.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",
