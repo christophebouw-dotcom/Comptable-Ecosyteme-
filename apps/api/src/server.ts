@@ -2,8 +2,17 @@ import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { createContext } from "./context.js";
 import { RgpdService } from "./services/rgpd.js";
+import { sauvegarder } from "./services/sauvegarde.js";
 
 const config = loadConfig();
+if (config.env === "production") {
+  // Les cookies de session « __Host- » exigent HTTPS : refuser une origine en clair.
+  if (!config.publicOrigin.startsWith("https://") && !/^http:\/\/localhost(:\d+)?$/.test(config.publicOrigin)) {
+    console.error(`PUBLIC_ORIGIN doit être une adresse https:// en production (reçu : ${config.publicOrigin}).`);
+    process.exit(1);
+  }
+  if (!config.backupDir) console.warn("⚠️  BACKUP_DIR non défini : aucune sauvegarde automatique ne sera réalisée.");
+}
 const ctx = createContext(config);
 const app = await buildApp(config, ctx);
 
@@ -22,6 +31,21 @@ const purge = () => {
 };
 setInterval(purge, 24 * 3_600_000).unref();
 purge();
+
+// Sauvegarde chiffrée quotidienne, avec rotation (RGPD art. 32.1.c).
+const sauvegarde = async () => {
+  if (!config.backupDir || config.databasePath === ":memory:") return;
+  try {
+    const r = await sauvegarder(ctx.db, config.masterKey, config.backupDir, config.backupRetentionDays);
+    ctx.audit.record({ action: "systeme.sauvegarde", details: { fichier: r.fichier.split("/").pop(), taille: r.taille, supprimees: r.supprimees.length } });
+    app.log.info({ fichier: r.fichier, taille: r.taille }, "Sauvegarde chiffrée réalisée");
+  } catch (err) {
+    ctx.audit.record({ action: "systeme.sauvegarde_echec", details: { erreur: (err as Error).message } });
+    app.log.error(err, "Échec de la sauvegarde");
+  }
+};
+setInterval(() => void sauvegarde(), 24 * 3_600_000).unref();
+setTimeout(() => void sauvegarde(), 60_000).unref();
 
 const shutdown = async () => {
   await app.close();

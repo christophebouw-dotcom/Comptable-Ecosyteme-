@@ -1,0 +1,10 @@
+# Reverse proxy HTTPS : certificat Let's Encrypt obtenu et renouvelé automatiquement,
+# HTTP redirigé vers HTTPS, TLS 1.2+ uniquement. Aucun journal d'accès (minimisation).
+{$DOMAINE} {
+	encode zstd gzip
+	header -Server
+	request_body {
+		max_size 60MB
+	}
+	reverse_proxy app:3000
+}

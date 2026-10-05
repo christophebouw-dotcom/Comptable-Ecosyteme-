@@ -2,7 +2,7 @@
 
 **Plateforme logicielle pour cabinets d'expertise comptable, conforme par conception au droit comptable et fiscal français et au RGPD.**
 
-Comptabilité en partie double aux écritures intangibles, FEC conforme, TVA, facturation prête pour la réforme de la facturation électronique 2026, et centre de conformité RGPD complet : registre, droits des personnes, violations de données, purge automatique.
+Comptabilité en partie double aux écritures intangibles, FEC conforme, TVA, facturation prête pour la réforme de la facturation électronique 2026, écritures de fin d'exercice, paie, portail client et centre de conformité RGPD complet : registre, droits des personnes, violations de données, purge automatique. Prête à être mise en ligne (Docker, HTTPS automatique, sauvegardes chiffrées).
 
 ![Synthèse d'un dossier](docs/captures/synthese.png)
 
@@ -42,6 +42,36 @@ Comptabilité en partie double aux écritures intangibles, FEC conforme, TVA, fa
 | **IS** | Passage du résultat comptable au résultat fiscal, taux réduit PME 15 % puis 25 %, imputation plafonnée des déficits, acomptes, écriture 695 / 444 |
 | **Mission et LCB-FT** | Lettre de mission (déontologie, art. 151), identification du client et des bénéficiaires effectifs, niveau de risque, PPE, périodicité de revue ; alertes sur le tableau de bord |
 | **Reprise de dossier** | Import du FEC d'un autre logiciel : contrôle préalable, création des journaux, comptes et tiers, tout ou rien |
+| **Fin d'exercice** | Factures non parvenues et à établir (avec TVA 44586/44587), charges et produits constatés d'avance **calculés au jour près** depuis la période de la facture, charges à payer, produits à recevoir, dépréciations de créances, provisions ; **détection automatique** des fournisseurs mensuels sans facture de décembre et des charges payées d'avance ; aperçu de l'écriture ; **extourne en un clic** au 1er jour de l'exercice suivant |
+
+![Écritures de fin d'exercice](docs/captures/fin-exercice.png)
+
+### Paie
+| | |
+|---|---|
+| **Salariés** | Fiche chiffrée (identité, NIR contrôlé et masqué, IBAN), statut cadre / non-cadre, entrée et sortie |
+| **Bulletin** | Cotisations 2026 par tranches (sécurité sociale, AGIRC-ARRCO, CEG, CET, APEC, chômage, AGS, FNAL, CSA, formation, apprentissage), taux réduits maladie et allocations familiales, **réduction générale**, heures supplémentaires (majorations, réduction salariale, déduction patronale), absences, primes, CSG/CRDS, **prélèvement à la source** (taux personnalisé ou neutre), net social, coût employeur |
+| **Validation** | Bulletin figé et scellé (empreinte SHA-256, trigger SQL), imprimable en PDF, conservé 5 ans puis purgé |
+| **Comptabilité** | Écriture de paie générée au journal PA (641x, 645x, 421, 431, 437, 4421), récapitulatif des charges par organisme pour contrôler la DSN |
+
+Le barème est **paramétrable** et fourni à titre indicatif : à vérifier par le cabinet à chaque évolution légale.
+
+![Bulletin de paie](docs/captures/bulletin-paie.png)
+
+### Portail client
+Les dirigeants (profil « Client ») ont leur **propre espace**, simple et adapté au téléphone :
+
+| | |
+|---|---|
+| **Tableau de bord** | Chiffre d'affaires mensuel, résultat provisoire, trésorerie, clients à encaisser, fournisseurs à payer, prochaines échéances fiscales |
+| **Dépôt de justificatifs** | Glisser-déposer ou **photo du ticket** depuis le téléphone ; doublons détectés ; lecture automatique comme côté cabinet |
+| **Demandes du cabinet** | Le collaborateur demande le justificatif d'une opération bancaire en un clic ; le client répond en joignant le fichier ou en expliquant |
+| **Messagerie** | Échanges **chiffrés**, conservés dans le dossier, compteurs de messages non lus des deux côtés |
+| **Documents** | Suivi des pièces déposées, factures émises, bulletins de paie |
+
+Côté cabinet, l'onglet *Échanges client* et le tableau de bord signalent les messages, pièces et réponses reçus. Le client ne voit jamais les informations de vigilance LCB-FT.
+
+![Portail client](docs/captures/portail-accueil.png)
 
 ### Pièces justificatives et intelligence artificielle
 Déposez les factures, tickets et notes de frais (PDF, photos, XML) par glisser-déposer, plusieurs à la fois :
@@ -80,7 +110,7 @@ L'IA est **désactivée par défaut** : il faut une clé d'API (`ANTHROPIC_API_K
 ![Centre RGPD](docs/captures/rgpd.png)
 
 ### Cabinet et sécurité
-- Profils : administrateur, expert-comptable, collaborateur, client (lecture seule), **DPO** (RGPD et audit, sans accès comptable).
+- Profils : administrateur, expert-comptable, collaborateur, client (portail), **DPO** (RGPD et audit, sans accès comptable).
 - Cloisonnement par dossier : un collaborateur ne voit que ses dossiers ; un dossier inaccessible répond « introuvable ».
 - **Double authentification TOTP**, politique de mots de passe CNIL, verrouillage après 5 échecs.
 - **Journal d'audit infalsifiable** (chaîne SHA-256, en ajout seul) avec vérification d'intégrité.
@@ -126,6 +156,9 @@ Comptes de démonstration (mot de passe `Demo-Compta-2026!`) :
 | `npm run typecheck` | Vérification TypeScript stricte des trois paquets |
 | `npm run build` | Compilation de l'interface (servie ensuite par l'API) |
 | `npm start` | Démarrage en production |
+| `npm run configurer -- <domaine>` | Génère la configuration de production (`.env`, clé maîtresse aléatoire) |
+| `npm run initialiser -- --email … --nom …` | Crée le premier administrateur d'une installation vierge |
+| `npm run sauvegarde` / `sauvegardes` / `restaurer` | Sauvegarde chiffrée immédiate, liste, restauration vérifiée |
 
 ## Architecture
 
@@ -182,7 +215,7 @@ Voir [SECURITY.md](SECURITY.md). Points clés : sessions opaques (seule l'emprei
 npm test
 ```
 
-**121 tests** couvrent notamment :
+**149 tests** couvrent notamment :
 - le moteur comptable : équilibre, bilan équilibré, à-nouveaux, contre-passation, lettrage ;
 - le FEC : un FEC généré passe son propre contrôle, avec les deux séparateurs ;
 - les factures : arrondis par taux, mentions 2026, XML Factur-X ;
@@ -190,22 +223,28 @@ npm test
 - l'intangibilité : modification refusée **y compris en SQL direct** ;
 - la clôture et ses à-nouveaux ;
 - le RGPD : export, effacement avec conservation légale, violation ENISA, purge ;
-- la détection d'une falsification du journal d'audit.
+- la détection d'une falsification du journal d'audit ;
+- les régularisations (prorata, comptes, suggestions) et leur extourne après clôture ;
+- la paie : tranches, taux réduits, réduction générale, heures supplémentaires, écriture équilibrée, bulletin intangible ;
+- le portail : cloisonnement, demandes, dépôt, messages chiffrés, non-divulgation LCB-FT ;
+- les sauvegardes : chiffrement, mauvaise clé, fichier altéré, rotation, sauvegardes simultanées.
 
 ## Déploiement
 
+**Guide pas à pas, sans prérequis technique : [docs/MISE-EN-LIGNE.md](docs/MISE-EN-LIGNE.md)** (hébergeur français, nom de domaine, installation, sauvegardes hors site, mises à jour).
+
+En résumé, sur un serveur Linux avec Docker :
+
 ```bash
-docker build -t compta-ecosysteme .
-docker run -p 3000:3000 -v compta-data:/app/data \
-  -e APP_MASTER_KEY="$(openssl rand -base64 32)" \
-  -e PUBLIC_ORIGIN=https://compta.mon-cabinet.fr compta-ecosysteme
+npm run configurer -- compta.mon-cabinet.fr   # crée .env avec une clé maîtresse aléatoire
+docker compose up -d --build                  # application + Caddy (HTTPS Let's Encrypt automatique)
+docker compose exec app npm run initialiser -- --email vous@cabinet.fr --nom "Prénom Nom"
 ```
 
-En production :
-- placez l'application derrière un reverse proxy TLS (HSTS activé automatiquement) ;
-- choisissez un hébergeur situé dans l'UE, idéalement certifié HDS ou SecNumCloud selon vos exigences ;
-- conservez `APP_MASTER_KEY` dans un coffre-fort (KMS, Vault) : sa perte rend les données chiffrées irrécupérables ;
-- sauvegardez la base chiffrée et testez la restauration.
+- Conteneur durci : lecture seule, utilisateur non privilégié, aucune capacité Linux.
+- **Sauvegarde chiffrée chaque nuit** avec rotation, restauration vérifiée par `npm run restaurer`.
+- Le serveur refuse de démarrer sans `APP_MASTER_KEY` ou sans origine `https://`.
+- Conservez `APP_MASTER_KEY` dans un coffre-fort, hors du serveur : sa perte rend les données et les sauvegardes irrécupérables.
 
 ## Limites et feuille de route
 
@@ -215,10 +254,9 @@ Ce projet est une base solide, pas un logiciel certifié. Avant tout usage en pr
 - [ ] Factur-X : embarquer le XML dans un **PDF/A-3** et raccorder une **plateforme agréée (PA)** pour l'émission et la réception
 - [ ] Relevés bancaires au format CAMT.053 et connexion bancaire (DSP2)
 - [ ] Cessions d'immobilisations (plus-values) et amortissements dérogatoires
-- [ ] Écritures de régularisation assistées (FNP, FAE, CCA, PCA) avec extourne automatique
-- [ ] Paie
+- [ ] Paie : production de la DSN, régularisation progressive annuelle, absences maladie et congés payés valorisés, conventions collectives
 - [ ] Liasse fiscale (EDI-TDFC) et télédéclaration de la TVA (EDI-TVA)
-- [ ] Portail client : dépôt des pièces par le client lui-même
+- [ ] Portail client : notifications par e-mail, signature électronique de la lettre de mission
 - [ ] Extraction du XML embarqué dans les PDF Factur-X (aujourd'hui : XML seul, ou lecture IA du PDF)
 - [ ] Traitement des pièces en arrière-plan (file d'attente) pour les dépôts de plusieurs centaines de documents
 - [ ] Interrogation des API SIRENE (INSEE) et VIES

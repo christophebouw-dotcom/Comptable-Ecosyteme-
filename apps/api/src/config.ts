@@ -19,6 +19,10 @@ export interface AppConfig {
   /** Répertoire du front-end compilé à servir (production). */
   webDist?: string;
   logLevel: string;
+  /** Répertoire des sauvegardes chiffrées quotidiennes (désactivées si absent). */
+  backupDir?: string;
+  /** Durée de conservation des sauvegardes, en jours. */
+  backupRetentionDays: number;
 }
 
 export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
@@ -45,6 +49,8 @@ export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     sessionMaxHours: Number(process.env.SESSION_MAX_HOURS ?? 12),
     webDist: process.env.WEB_DIST,
     logLevel: process.env.LOG_LEVEL ?? (env === "test" ? "silent" : "info"),
+    backupDir: process.env.BACKUP_DIR || undefined,
+    backupRetentionDays: Number(process.env.BACKUP_RETENTION_DAYS ?? 30),
     ...overrides,
   };
 }
