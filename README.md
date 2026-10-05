@@ -89,7 +89,7 @@ L'IA est **désactivée par défaut** : il faut une clé d'API (`ANTHROPIC_API_K
 
 Prérequis : **Node.js 22.13 ou plus récent** (version « LTS » sur [nodejs.org](https://nodejs.org)). Vérifiez avec `node -v`. Aucune base de données à installer : SQLite est intégré à Node.
 
-**Sur Mac, le plus simple** : double-cliquez sur `Démarrer (Mac).command`. Il vérifie Node.js, installe les dépendances, crée la base de démonstration et ouvre le navigateur. Au premier lancement, macOS peut demander une confirmation : clic droit sur le fichier → Ouvrir.
+**Sur Mac, le plus simple** : double-cliquez sur `Demarrer-Mac.command`. Il vérifie Node.js, installe les dépendances, crée la base de démonstration et ouvre le navigateur. Au premier lancement, macOS peut demander une confirmation : clic droit sur le fichier → Ouvrir.
 
 **En ligne de commande** :
 
