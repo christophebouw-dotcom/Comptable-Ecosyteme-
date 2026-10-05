@@ -12,6 +12,8 @@ export interface BulletinDetail {
   salarie: { matricule: string; nom: string; prenom: string; emploi: string; statut: "cadre" | "non_cadre"; dateEntree: string; nirMasque: string | null };
   variables: ElementsVariables;
   bulletin: Bulletin;
+  /** Cumuls de l'année civile, mois du bulletin inclus (bulletins validés uniquement). */
+  cumuls: { bulletins: number; brut: number; netImposable: number; pas: number; heuresSup: number; hsExonerees: number; congesAcquis: number } | null;
 }
 
 const RUBRIQUES: Record<string, string> = {
@@ -96,6 +98,22 @@ export function BulletinView({ d }: { d: BulletinDetail }) {
           <dt>Congés acquis ce mois</dt><dd>{b.congesAcquis.toLocaleString("fr-FR")} jours ouvrables</dd>
         </dl>
       </div>
+      {d.cumuls && (
+        <table className="bulletin-cumuls">
+          <caption>Cumuls {d.periode.slice(0, 4)} ({d.cumuls.bulletins} bulletin{d.cumuls.bulletins > 1 ? "s" : ""})</caption>
+          <thead><tr><th className="num">Salaire brut</th><th className="num">Net imposable</th><th className="num">Impôt prélevé</th><th className="num">Heures sup.</th><th className="num">HS exonérées</th><th className="num">Congés acquis</th></tr></thead>
+          <tbody>
+            <tr>
+              <td className="num">{eur(d.cumuls.brut)}</td>
+              <td className="num">{eur(d.cumuls.netImposable)}</td>
+              <td className="num">{eur(d.cumuls.pas)}</td>
+              <td className="num">{d.cumuls.heuresSup.toLocaleString("fr-FR")} h</td>
+              <td className="num">{eur(d.cumuls.hsExonerees)}</td>
+              <td className="num">{d.cumuls.congesAcquis.toLocaleString("fr-FR")} j</td>
+            </tr>
+          </tbody>
+        </table>
+      )}
       <footer className="subtle bulletin-pied">
         Dans votre intérêt et pour vous aider à faire valoir vos droits, conservez ce bulletin de paie sans limitation de durée. Pour en savoir plus : www.service-public.fr.
         {d.statut === "valide" && d.hash && <div>Bulletin validé le {new Date(d.validatedAt!).toLocaleDateString("fr-FR")} — empreinte <Hash value={d.hash} /></div>}

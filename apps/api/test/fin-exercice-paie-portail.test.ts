@@ -127,13 +127,32 @@ describe("paie", () => {
     expect(recap.totaux.netAPayer).toBe(prep.body.bulletin.netAPayer);
     expect(recap.recapitulatif.map((r: { organisme: string }) => r.organisme)).toEqual(expect.arrayContaining(["urssaf", "retraite", "mutuelle"]));
   });
+
+  it("cumule l'année et exige un recalcul si les cumuls ont changé depuis la préparation", async () => {
+    // Mars a été validé au test précédent : ses montants alimentent les cumuls.
+    const avril = await collab.req("POST", `${base()}/paie/bulletins`, { salarieId, periode: "2026-04", variables: { heuresSup25: 2 } });
+    expect(avril.status).toBe(201);
+    const detailMars = (await collab.req("GET", `${base()}/paie?periode=2026-03`)).body.bulletins[0];
+    const mars = (await collab.req("GET", `${base()}/paie/bulletins/${detailMars.id}`)).body;
+    expect(mars.cumuls).toMatchObject({ bulletins: 1, brut: mars.bulletin.brut, heuresSup: 4, netImposable: mars.bulletin.netImposable });
+    // Paramètres modifiés après la préparation : la validation est refusée tant que le bulletin n'est pas recalculé.
+    const params = (await collab.req("GET", `${base()}/paie?periode=2026-04`)).body.parametres;
+    expect((await collab.req("PUT", `${base()}/paie/parametres`, { ...params, tauxAtMp: params.tauxAtMp + 1 })).status).toBe(200);
+    expect((await collab.req("POST", `${base()}/paie/bulletins/${avril.body.id}/valider`, {})).status).toBe(409);
+    expect((await collab.req("POST", `${base()}/paie/bulletins`, { salarieId, periode: "2026-04", variables: { heuresSup25: 2 } })).status).toBe(200);
+    expect((await collab.req("POST", `${base()}/paie/bulletins/${avril.body.id}/valider`, {})).status).toBe(200);
+    const cumulAvril = (await collab.req("GET", `${base()}/paie/bulletins/${avril.body.id}`)).body.cumuls;
+    expect(cumulAvril.bulletins).toBe(2);
+    expect(cumulAvril.heuresSup).toBe(6);
+    expect(cumulAvril.brut).toBeGreaterThan(mars.cumuls.brut);
+  });
 });
 
 describe("paie et RGPD", () => {
   it("inclut le salarié dans le droit d'accès et conserve la paie lors d'un effacement", () => {
     const rgpd = new RgpdService(env.ctx);
     const exp = rgpd.exportPersonne("alice.durand@exemple.fr");
-    expect(exp.salarie).toEqual([expect.objectContaining({ nom: "Durand", matricule: "S1", bulletins: [expect.objectContaining({ periode: "2026-03" })] })]);
+    expect(exp.salarie).toEqual([expect.objectContaining({ nom: "Durand", matricule: "S1", bulletins: expect.arrayContaining([expect.objectContaining({ periode: "2026-03" })]) })]);
     expect(JSON.stringify(exp)).not.toMatch(/18507751234\d{4}/);
     const decisions = rgpd.analyserEffacement("alice.durand@exemple.fr");
     expect(decisions.find((d) => d.categorie === "bulletins_paie")?.decision).toBe("conserver_limiter");
@@ -187,7 +206,7 @@ describe("portail client", () => {
     expect(aTraiter).toEqual([expect.objectContaining({ dossierId, demandesRepondues: 1, piecesClient: 1 })]);
     const docs = (await client.req("GET", `/api/portail/dossiers/${dossierId}/documents`)).body;
     expect(docs.pieces[0]).toMatchObject({ nomFichier: "amazon.pdf", deposeeParClient: true });
-    expect(docs.bulletins[0]).toMatchObject({ periode: "2026-03", salarie: "Alice Durand" });
+    expect(docs.bulletins.find((b: { periode: string }) => b.periode === "2026-03")).toMatchObject({ periode: "2026-03", salarie: "Alice Durand" });
     // Le client ne peut pas comptabiliser ni supprimer.
     expect((await client.req("DELETE", `${base()}/pieces/${r.body.id}`)).status).toBe(403);
   });

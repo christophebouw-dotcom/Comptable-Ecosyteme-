@@ -8,6 +8,7 @@
 import {
   BAREME_2026,
   type Bulletin,
+  type ContextePaie,
   type ElementsVariables,
   LIBELLES_ORGANISMES,
   type ProfilPaie,
@@ -132,12 +133,38 @@ export async function paieRoutes(app: FastifyInstance) {
     return s;
   };
 
+  /** Cumuls de l'année civile des bulletins validés antérieurs à `periode` (ou jusqu'à elle incluse). */
+  const cumulsAnnee = (salarieId: number, periode: string, inclure = false) => {
+    const lignes = db.all<{ variables: string; resultat_enc: string }>(
+      `SELECT variables, resultat_enc FROM bulletins WHERE salarie_id = ? AND statut = 'valide' AND periode >= ? AND periode ${inclure ? "<=" : "<"} ? ORDER BY periode`,
+      salarieId, `${periode.slice(0, 4)}-01`, periode,
+    );
+    const c = { bulletins: 0, brut: 0, netImposable: 0, pas: 0, netAPayer: 0, coutEmployeur: 0, heuresSup: 0, hsExonerees: 0, congesAcquis: 0 };
+    for (const l of lignes) {
+      const r = JSON.parse(cipher.decrypt(l.resultat_enc)!) as Bulletin;
+      const v = JSON.parse(l.variables) as ElementsVariables;
+      c.bulletins++;
+      c.brut += r.brut;
+      c.netImposable += r.netImposable;
+      c.pas += r.pas.montant;
+      c.netAPayer += r.netAPayer;
+      c.coutEmployeur += r.coutEmployeur;
+      c.heuresSup += v.heuresSup25 + v.heuresSup50;
+      // Bulletins antérieurs au suivi du plafond : toute la part nette des heures supplémentaires était exonérée.
+      c.hsExonerees += r.hsExonerees ?? Math.max(0, r.montantHs - r.allegements.reductionHsSalariale);
+      c.congesAcquis += r.congesAcquis;
+    }
+    return c;
+  };
+
+  const contexteDe = (salarieId: number, periode: string): ContextePaie => ({ hsExonereesAnterieures: cumulsAnnee(salarieId, periode).hsExonerees });
+
   const calculer = (dossier: DossierRow, s: SalarieRow, periode: string, variables: ElementsVariables): Bulletin => {
     if (s.anonymized_at) throw unprocessable("Salarié anonymisé");
     if (periode < s.date_entree.slice(0, 7)) throw unprocessable(`Le salarié est entré le ${s.date_entree}`);
     if (s.date_sortie && periode > s.date_sortie.slice(0, 7)) throw unprocessable(`Le salarié est sorti le ${s.date_sortie}`);
     try {
-      return calculerBulletin(profilDe(s), variables, parametres(dossier.id), BAREME_2026);
+      return calculerBulletin(profilDe(s), variables, parametres(dossier.id), BAREME_2026, contexteDe(s.id, periode));
     } catch (err) {
       throw unprocessable((err as Error).message);
     }
@@ -279,6 +306,7 @@ export async function paieRoutes(app: FastifyInstance) {
       salarie: { matricule: sal.matricule, nom: sal.nom, prenom: sal.prenom, emploi: sal.emploi, statut: sal.statut, dateEntree: sal.dateEntree, nirMasque: sal.nirMasque },
       variables: JSON.parse(b.variables) as ElementsVariables,
       bulletin: JSON.parse(cipher.decrypt(b.resultat_enc)!) as Bulletin,
+      cumuls: b.statut === "valide" ? cumulsAnnee(s.id, b.periode, true) : null,
     };
   });
 
@@ -301,6 +329,11 @@ export async function paieRoutes(app: FastifyInstance) {
     if (b.statut === "valide") throw conflict("Bulletin déjà validé");
     const s = getSalarie(dossier.id, b.salarie_id);
     const r = JSON.parse(cipher.decrypt(b.resultat_enc)!) as Bulletin;
+    // Les cumuls (plafond des heures supplémentaires) ou les paramètres ont pu changer depuis la préparation.
+    const actuel = calculer(dossier, s, b.periode, JSON.parse(b.variables) as ElementsVariables);
+    if (canonicalJson(actuel) !== canonicalJson(r)) {
+      throw conflict("Le bulletin doit être recalculé : paramètres ou cumuls de l'année modifiés depuis sa préparation (« Modifier » puis « Enregistrer »)");
+    }
     const date = finDeMois(b.periode);
     const res = db.transaction(() => {
       db.run("INSERT OR IGNORE INTO journaux (dossier_id, code, libelle, type) VALUES (?, 'PA', 'Paie', 'od')", dossier.id);

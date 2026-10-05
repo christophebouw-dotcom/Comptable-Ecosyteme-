@@ -312,6 +312,9 @@ pre.letter { white-space: pre-wrap; font-family: var(--font); background: var(--
 .bulletin-net dl { display: grid; grid-template-columns: auto auto; gap: 2px 16px; margin: 0; }
 .bulletin-net dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .bulletin-pied { margin-top: 14px; display: grid; gap: 4px; }
+.bulletin-cumuls { width: 100%; margin-top: 12px; font-size: 13px; }
+.bulletin-cumuls caption { text-align: left; font-weight: 600; padding: 0 8px 4px; }
+.bulletin-cumuls td, .bulletin-cumuls th { padding: 4px 8px; }
 @media (max-width: 860px) { .bulletin-entete { grid-template-columns: 1fr; } }
 @media print {
   .bulletin { border: none; padding: 0; font-size: 11px; }

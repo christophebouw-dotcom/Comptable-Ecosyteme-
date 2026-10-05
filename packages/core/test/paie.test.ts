@@ -128,6 +128,19 @@ describe("paie", () => {
     expect(b.allegements.deductionHs).toBe(10 * 150);
     const sansHs = calculerBulletin(profil(), SANS_VARIABLES, EMPLOYEUR);
     expect(Math.abs(b.netImposable - sansHs.netImposable)).toBeLessThan(b.montantHs * 0.15);
+    expect(b.hsExonerees).toBe(b.montantHs - b.allegements.reductionHsSalariale);
+  });
+
+  it("limite l'exonération d'impôt des heures supplémentaires au plafond annuel", () => {
+    const v = { ...SANS_VARIABLES, heuresSup25: 10 };
+    const libre = calculerBulletin(profil(), v, EMPLOYEUR);
+    const partiel = calculerBulletin(profil(), v, EMPLOYEUR, BAREME_2026, { hsExonereesAnterieures: BAREME_2026.plafondExonerationHs - 5_000 });
+    expect(partiel.hsExonerees).toBe(5_000);
+    expect(partiel.netImposable - libre.netImposable).toBe(libre.hsExonerees - 5_000);
+    expect(partiel.avertissements.join()).toContain("Plafond annuel");
+    const epuise = calculerBulletin(profil(), v, EMPLOYEUR, BAREME_2026, { hsExonereesAnterieures: BAREME_2026.plafondExonerationHs });
+    expect(epuise.hsExonerees).toBe(0);
+    expect(libre.avertissements.join()).not.toContain("Plafond annuel");
   });
 
   it("retient les absences et ajoute les indemnités non soumises au net", () => {

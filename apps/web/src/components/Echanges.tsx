@@ -34,8 +34,12 @@ export const STATUT_DEMANDE: Record<Demande["statut"], { label: string; tone?: "
 };
 
 /** Fil de discussion chiffré entre le cabinet et le client d'un dossier. */
-export function Messagerie({ dossierId, peutEcrire = true, interlocuteur }: { dossierId: number; peutEcrire?: boolean; interlocuteur: string }) {
+export function Messagerie({ dossierId, peutEcrire = true, interlocuteur, onLecture }: { dossierId: number; peutEcrire?: boolean; interlocuteur: string; onLecture?: () => void }) {
   const { data, error, loading, reload } = useApi<Message[]>(`/api/dossiers/${dossierId}/messages`);
+  // La lecture du fil marque les messages reçus comme lus côté serveur.
+  useEffect(() => {
+    if (data) onLecture?.();
+  }, [data, onLecture]);
   const [texte, setTexte] = useState("");
   const { pending, error: errEnvoi, run } = useAction();
   const fin = useRef<HTMLDivElement>(null);

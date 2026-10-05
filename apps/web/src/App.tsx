@@ -1,44 +1,52 @@
+import { type ComponentType, Suspense, lazy } from "react";
 import { NavLink, Navigate, Outlet, Route, Routes } from "react-router";
 import { Icon } from "./components/icons";
 import { Loading } from "./components/ui";
 import { useAuth } from "./lib/hooks";
-import { AccountPage } from "./pages/AccountPage";
-import { AuditPage } from "./pages/AuditPage";
-import { ConfidentialitePage } from "./pages/ConfidentialitePage";
-import { DashboardPage } from "./pages/DashboardPage";
 import { DossierLayout } from "./pages/dossier/DossierLayout";
-import { BalancePage } from "./pages/dossier/BalancePage";
-import { BanquePage } from "./pages/dossier/BanquePage";
-import { ImmobilisationsPage } from "./pages/dossier/ImmobilisationsPage";
-import { MissionPage } from "./pages/dossier/MissionPage";
-import { PiecesPage } from "./pages/dossier/PiecesPage";
-import { RevisionPage } from "./pages/dossier/RevisionPage";
-import { CloturePage } from "./pages/dossier/CloturePage";
-import { EcrituresPage } from "./pages/dossier/EcrituresPage";
-import { EchangesPage } from "./pages/dossier/EchangesPage";
-import { InventairePage } from "./pages/dossier/InventairePage";
-import { BulletinPage, PaiePage } from "./pages/dossier/PaiePage";
-import { EtatsPage } from "./pages/dossier/EtatsPage";
-import { FacturesPage } from "./pages/dossier/FacturesPage";
-import { GrandLivrePage } from "./pages/dossier/GrandLivrePage";
-import { SaisiePage } from "./pages/dossier/SaisiePage";
-import { SynthesePage } from "./pages/dossier/SynthesePage";
-import { TiersPage } from "./pages/dossier/TiersPage";
-import { TvaPage } from "./pages/dossier/TvaPage";
-import { DossiersPage } from "./pages/DossiersPage";
 import { LoginPage } from "./pages/LoginPage";
-import { PortailApp } from "./pages/portail/Portail";
-import { RgpdPage } from "./pages/RgpdPage";
-import { UsersPage } from "./pages/UsersPage";
+
+/** Chargement à la demande : chaque écran est téléchargé lors de sa première ouverture. */
+function page<K extends string>(charger: () => Promise<Record<K, ComponentType>>, nom: K) {
+  return lazy(async () => ({ default: (await charger())[nom] }));
+}
+
+const AccountPage = page(() => import("./pages/AccountPage"), "AccountPage");
+const AuditPage = page(() => import("./pages/AuditPage"), "AuditPage");
+const ConfidentialitePage = page(() => import("./pages/ConfidentialitePage"), "ConfidentialitePage");
+const DashboardPage = page(() => import("./pages/DashboardPage"), "DashboardPage");
+const BalancePage = page(() => import("./pages/dossier/BalancePage"), "BalancePage");
+const BanquePage = page(() => import("./pages/dossier/BanquePage"), "BanquePage");
+const ImmobilisationsPage = page(() => import("./pages/dossier/ImmobilisationsPage"), "ImmobilisationsPage");
+const MissionPage = page(() => import("./pages/dossier/MissionPage"), "MissionPage");
+const PiecesPage = page(() => import("./pages/dossier/PiecesPage"), "PiecesPage");
+const RevisionPage = page(() => import("./pages/dossier/RevisionPage"), "RevisionPage");
+const CloturePage = page(() => import("./pages/dossier/CloturePage"), "CloturePage");
+const EcrituresPage = page(() => import("./pages/dossier/EcrituresPage"), "EcrituresPage");
+const EchangesPage = page(() => import("./pages/dossier/EchangesPage"), "EchangesPage");
+const InventairePage = page(() => import("./pages/dossier/InventairePage"), "InventairePage");
+const BulletinPage = page(() => import("./pages/dossier/PaiePage"), "BulletinPage");
+const PaiePage = page(() => import("./pages/dossier/PaiePage"), "PaiePage");
+const EtatsPage = page(() => import("./pages/dossier/EtatsPage"), "EtatsPage");
+const FacturesPage = page(() => import("./pages/dossier/FacturesPage"), "FacturesPage");
+const GrandLivrePage = page(() => import("./pages/dossier/GrandLivrePage"), "GrandLivrePage");
+const SaisiePage = page(() => import("./pages/dossier/SaisiePage"), "SaisiePage");
+const SynthesePage = page(() => import("./pages/dossier/SynthesePage"), "SynthesePage");
+const TiersPage = page(() => import("./pages/dossier/TiersPage"), "TiersPage");
+const TvaPage = page(() => import("./pages/dossier/TvaPage"), "TvaPage");
+const DossiersPage = page(() => import("./pages/DossiersPage"), "DossiersPage");
+const PortailApp = page(() => import("./pages/portail/Portail"), "PortailApp");
+const RgpdPage = page(() => import("./pages/RgpdPage"), "RgpdPage");
+const UsersPage = page(() => import("./pages/UsersPage"), "UsersPage");
 
 export function App() {
   const { user, loading } = useAuth();
   if (loading) return <Loading />;
   // Les dirigeants clients disposent d'un espace dédié, simplifié.
-  if (user?.role === "client") return <PortailApp />;
+  if (user?.role === "client") return <Suspense fallback={<Loading />}><PortailApp /></Suspense>;
   return (
     <Routes>
-      <Route path="/confidentialite" element={<ConfidentialitePage />} />
+      <Route path="/confidentialite" element={<Suspense fallback={<Loading />}><ConfidentialitePage /></Suspense>} />
       {!user ? (
         <Route path="*" element={<LoginPage />} />
       ) : (
@@ -138,7 +146,9 @@ function Shell() {
         </div>
       </nav>
       <main className="main">
-        <Outlet />
+        <Suspense fallback={<Loading />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

@@ -81,7 +81,8 @@ export function useApi<T>(url: string | null): AsyncState<T> {
       });
   }, [url, tick]);
 
-  return { data, error, loading, reload: () => setTick((t) => t + 1), setData };
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+  return { data, error, loading, reload, setData };
 }
 
 // -- Notifications ---------------------------------------------------------------

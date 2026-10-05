@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, NavLink, Outlet, useOutletContext, useParams } from "react-router";
+import { Suspense, useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useOutletContext, useParams } from "react-router";
 import { ErrorBox, Loading, PageHeader } from "../../components/ui";
 import { useApi, useAuth } from "../../lib/hooks";
 import type { Dossier, Exercice } from "../../lib/types";
@@ -9,6 +9,8 @@ export interface DossierCtx {
   exercice: Exercice;
   setExerciceId: (id: number) => void;
   reload: () => void;
+  /** Met à jour la pastille « Échanges client » (messages lus, demandes traitées). */
+  rafraichirEchanges: () => void;
   base: string;
 }
 
@@ -19,6 +21,13 @@ export function DossierLayout() {
   const { can } = useAuth();
   const { data, error, loading, reload } = useApi<DossierCtx["dossier"]>(`/api/dossiers/${dossierId}`);
   const [exerciceId, setExerciceId] = useState<number | null>(null);
+  // Messages et réponses du client en attente, rafraîchis à chaque changement d'onglet.
+  const { pathname } = useLocation();
+  const echanges = useApi<{ dossierId: number; messagesNonLus: number; demandesRepondues: number }[]>(can("compta:write") ? "/api/echanges/a-traiter" : null);
+  const rafraichirEchanges = echanges.reload;
+  useEffect(() => rafraichirEchanges(), [pathname, rafraichirEchanges]);
+  const aTraiter = echanges.data?.find((e) => e.dossierId === Number(dossierId));
+  const nonLus = aTraiter ? aTraiter.messagesNonLus + aTraiter.demandesRepondues : 0;
 
   if (error) return <div className="page"><ErrorBox error={error} /></div>;
   if (loading && !data) return <Loading />;
@@ -64,11 +73,15 @@ export function DossierLayout() {
         <NavLink to={`${base}/factures`} className={tab}>Factures</NavLink>
         <NavLink to={`${base}/tiers`} className={tab}>Tiers</NavLink>
         <NavLink to={`${base}/paie`} className={tab}>Paie</NavLink>
-        <NavLink to={`${base}/echanges`} className={tab}>Échanges client</NavLink>
+        <NavLink to={`${base}/echanges`} className={tab}>
+          Échanges client{nonLus > 0 && <> <span className="pastille" aria-label={`${nonLus} élément(s) à traiter`}>{nonLus}</span></>}
+        </NavLink>
         <NavLink to={`${base}/mission`} className={tab}>Mission</NavLink>
         <NavLink to={`${base}/cloture`} className={tab}>Clôture & FEC</NavLink>
       </nav>
-      <Outlet context={{ dossier: data, exercice, setExerciceId, reload, base } satisfies DossierCtx} />
+      <Suspense fallback={<Loading />}>
+        <Outlet context={{ dossier: data, exercice, setExerciceId, reload, rafraichirEchanges, base } satisfies DossierCtx} />
+      </Suspense>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { type Demande, DemandeLigne, Messagerie } from "../../components/Echanges";
 import { Card, Empty, ErrorBox, Field, Loading } from "../../components/ui";
@@ -8,7 +8,7 @@ import { useDossier } from "./DossierLayout";
 
 /** Échanges avec le client : justificatifs demandés et messagerie. */
 export function EchangesPage() {
-  const { dossier, base } = useDossier();
+  const { dossier, base, rafraichirEchanges } = useDossier();
   const { can } = useAuth();
   const toast = useToast();
   const demandes = useApi<Demande[]>(`/api/dossiers/${dossier.id}/demandes`);
@@ -16,6 +16,9 @@ export function EchangesPage() {
   const [message, setMessage] = useState("");
   const action = useAction();
   const ecrire = can("compta:write");
+  useEffect(() => {
+    if (demandes.data) rafraichirEchanges();
+  }, [demandes.data, rafraichirEchanges]);
   const ouvertes = (demandes.data ?? []).filter((d) => d.statut !== "close");
   const closes = (demandes.data ?? []).filter((d) => d.statut === "close");
 
@@ -65,7 +68,7 @@ export function EchangesPage() {
         )}
       </div>
       <Card title="Messagerie avec le client" subtitle="Échanges chiffrés, conservés dans le dossier">
-        <Messagerie dossierId={dossier.id} peutEcrire={ecrire} interlocuteur="votre client" />
+        <Messagerie dossierId={dossier.id} peutEcrire={ecrire} interlocuteur="votre client" onLecture={rafraichirEchanges} />
       </Card>
     </div>
   );

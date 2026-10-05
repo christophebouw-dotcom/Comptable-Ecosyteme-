@@ -51,7 +51,8 @@ Comptabilité en partie double aux écritures intangibles, FEC conforme, TVA, fa
 |---|---|
 | **Salariés** | Fiche chiffrée (identité, NIR contrôlé et masqué, IBAN), statut cadre / non-cadre, entrée et sortie |
 | **Bulletin** | Cotisations 2026 par tranches (sécurité sociale, AGIRC-ARRCO, CEG, CET, APEC, chômage, AGS, FNAL, CSA, formation, apprentissage), taux réduits maladie et allocations familiales, **réduction générale**, heures supplémentaires (majorations, réduction salariale, déduction patronale), absences, primes, CSG/CRDS, **prélèvement à la source** (taux personnalisé ou neutre), net social, coût employeur |
-| **Validation** | Bulletin figé et scellé (empreinte SHA-256, trigger SQL), imprimable en PDF, conservé 5 ans puis purgé |
+| **Cumuls annuels** | Brut, net imposable, impôt prélevé, heures supplémentaires et congés acquis depuis janvier ; **plafond annuel d'exonération d'impôt des heures supplémentaires** (7 500 €) suivi automatiquement |
+| **Validation** | Bulletin figé et scellé (empreinte SHA-256, trigger SQL), imprimable en PDF, conservé 5 ans puis purgé. Un bulletin préparé avant une modification des paramètres ou des cumuls doit être recalculé avant validation |
 | **Comptabilité** | Écriture de paie générée au journal PA (641x, 645x, 421, 431, 437, 4421), récapitulatif des charges par organisme pour contrôler la DSN |
 
 Le barème est **paramétrable** et fourni à titre indicatif : à vérifier par le cabinet à chaque évolution légale.
@@ -120,6 +121,8 @@ L'IA est **désactivée par défaut** : il faut une clé d'API (`ANTHROPIC_API_K
 Prérequis : **Node.js 22.13 ou plus récent** (version « LTS » sur [nodejs.org](https://nodejs.org)). Vérifiez avec `node -v`. Aucune base de données à installer : SQLite est intégré à Node.
 
 **Sur Mac, le plus simple** : double-cliquez sur `Demarrer-Mac.command`. Il vérifie Node.js, installe les dépendances, crée la base de démonstration et ouvre le navigateur. Au premier lancement, macOS peut demander une confirmation : clic droit sur le fichier → Ouvrir.
+
+À chaque lancement (au plus une fois toutes les 12 heures), vos données sont **sauvegardées automatiquement**, chiffrées, dans le dossier `sauvegardes/` (conservées 30 jours). Pour revenir à une sauvegarde : arrêtez l'application, puis `npm run restaurer -- "$PWD/sauvegardes/compta-AAAAMMJJ-HHMMSS.db.enc" --forcer`. Gardez le fichier `apps/api/data/.dev-master-key` : il est nécessaire pour relire ces sauvegardes.
 
 **En ligne de commande** :
 
@@ -254,7 +257,7 @@ Ce projet est une base solide, pas un logiciel certifié. Avant tout usage en pr
 - [ ] Factur-X : embarquer le XML dans un **PDF/A-3** et raccorder une **plateforme agréée (PA)** pour l'émission et la réception
 - [ ] Relevés bancaires au format CAMT.053 et connexion bancaire (DSP2)
 - [ ] Cessions d'immobilisations (plus-values) et amortissements dérogatoires
-- [ ] Paie : production de la DSN, régularisation progressive annuelle, absences maladie et congés payés valorisés, conventions collectives
+- [ ] Paie : production de la DSN, régularisation progressive annuelle des plafonds et de la réduction générale, absences maladie et congés payés valorisés, conventions collectives
 - [ ] Liasse fiscale (EDI-TDFC) et télédéclaration de la TVA (EDI-TVA)
 - [ ] Portail client : notifications par e-mail, signature électronique de la lettre de mission
 - [ ] Extraction du XML embarqué dans les PDF Factur-X (aujourd'hui : XML seul, ou lecture IA du PDF)

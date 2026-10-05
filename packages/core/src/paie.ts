@@ -10,7 +10,8 @@
  * Simplifications assumées, signalées sur le bulletin :
  *  - pas de régularisation progressive annuelle des plafonds ni de la réduction générale ;
  *  - réduction générale imputée en totalité sur les cotisations URSSAF ;
- *  - exonération d'impôt des heures supplémentaires sans suivi du plafond annuel de 7 500 € ;
+ *  - plafond annuel d'exonération d'impôt des heures supplémentaires suivi à partir
+ *    des bulletins validés de l'année (contexte.hsExonereesAnterieures) ;
  *  - pas de régime local Alsace-Moselle, d'apprentis, de temps partiel thérapeutique, etc.
  *
  * Références : CSS art. L241-2 et s. (cotisations), L241-13 (réduction générale),
@@ -71,6 +72,8 @@ export interface Bareme {
   reductionGenerale: { tMin: number; tDeltaMoins50: number; tDelta50Plus: number; puissance: number; plafondSmic: number };
   /** Déduction forfaitaire patronale par heure supplémentaire, en centimes. */
   deductionHsParHeure: { moins20: Cents; de20a249: Cents };
+  /** Plafond annuel d'exonération d'impôt des heures supplémentaires (CGI art. 81 quater), en centimes. */
+  plafondExonerationHs: Cents;
   /** Grille du taux neutre du prélèvement à la source (métropole) : [plafond mensuel en centimes, taux %]. */
   grilleTauxNeutre: [Cents, number][];
 }
@@ -121,6 +124,7 @@ export const BAREME_2026: Bareme = {
   },
   reductionGenerale: { tMin: 0.02, tDeltaMoins50: 0.3773, tDelta50Plus: 0.3813, puissance: 1.75, plafondSmic: 3 },
   deductionHsParHeure: { moins20: 150, de20a249: 50 },
+  plafondExonerationHs: 750_000,
   grilleTauxNeutre: [
     [162_000, 0], [168_300, 0.5], [179_100, 1.3], [191_100, 2.1], [204_200, 2.9], [215_100, 3.5], [229_400, 4.1],
     [271_400, 5.3], [310_700, 7.5], [353_900, 9.9], [398_300, 11.9], [464_800, 13.8], [557_400, 15.8], [709_600, 17.9],
@@ -152,6 +156,12 @@ export interface ElementsVariables {
   heuresAbsence: number;
   /** Indemnités non soumises (remboursements de frais), ajoutées au net. */
   indemnitesNonSoumises: Cents;
+}
+
+/** Cumuls de l'année civile antérieurs au mois calculé (bulletins validés). */
+export interface ContextePaie {
+  /** Heures supplémentaires déjà exonérées d'impôt dans l'année, en centimes. */
+  hsExonereesAnterieures: Cents;
 }
 
 export interface ParametresEmployeur {
@@ -187,6 +197,8 @@ export interface Bulletin {
   remuneration: { code: string; libelle: string; base: number | null; taux: Cents | null; montant: Cents }[];
   brut: Cents;
   montantHs: Cents;
+  /** Part des heures supplémentaires exonérée d'impôt ce mois (dans la limite du plafond annuel). */
+  hsExonerees: Cents;
   lignes: LigneBulletin[];
   totalSalarial: Cents;
   totalPatronal: Cents;
@@ -218,7 +230,13 @@ export function coefficientReductionGenerale(brut: Cents, smicReference: Cents, 
   return Math.round(Math.min(rg.tMin + tDelta, c) * 10_000) / 10_000;
 }
 
-export function calculerBulletin(profil: ProfilPaie, variables: ElementsVariables, employeur: ParametresEmployeur, bareme: Bareme = BAREME_2026): Bulletin {
+export function calculerBulletin(
+  profil: ProfilPaie,
+  variables: ElementsVariables,
+  employeur: ParametresEmployeur,
+  bareme: Bareme = BAREME_2026,
+  contexte: ContextePaie = { hsExonereesAnterieures: 0 },
+): Bulletin {
   const t = bareme.taux;
   const avertissements: string[] = [];
   if (profil.heuresMensuelles <= 0 || profil.heuresMensuelles > 220) throw new Error("Durée mensuelle invalide");
@@ -316,13 +334,18 @@ export function calculerBulletin(profil: ProfilPaie, variables: ElementsVariable
   const totalPatronal = L.reduce((a, l) => a + l.montantPat, 0);
   const nonDeductibles = L.filter((l) => l.nonDeductible).reduce((a, l) => a + l.montantSal, 0);
   const netAvantImpot = brut - totalSalarial + variables.indemnitesNonSoumises;
-  // Net imposable : part patronale santé réintégrée (CGI art. 83), heures supplémentaires exonérées (CGI art. 81 quater).
-  const netImposable = Math.max(0, brut - (totalSalarial - nonDeductibles) + profil.mutuelleEmployeur - (montantHs - reductionHsSalariale));
+  // Net imposable : part patronale santé réintégrée (CGI art. 83), heures supplémentaires exonérées
+  // dans la limite du plafond annuel (CGI art. 81 quater).
+  const disponibleHs = Math.max(0, bareme.plafondExonerationHs - contexte.hsExonereesAnterieures);
+  const hsExonerees = Math.min(Math.max(0, montantHs - reductionHsSalariale), disponibleHs);
+  const netImposable = Math.max(0, brut - (totalSalarial - nonDeductibles) + profil.mutuelleEmployeur - hsExonerees);
   const tauxNeutre = profil.tauxPas == null;
   const tauxPas = profil.tauxPas ?? tauxNeutrePas(netImposable, bareme);
   const pas = pct(netImposable, tauxPas);
   const netSocial = brut - totalSalarial + profil.mutuelleEmployeur;
-  if (montantHs) avertissements.push("Exonération d'impôt des heures supplémentaires appliquée sans suivi du plafond annuel de 7 500 €.");
+  if (montantHs && hsExonerees < montantHs - reductionHsSalariale) {
+    avertissements.push(`Plafond annuel d'exonération des heures supplémentaires (${(bareme.plafondExonerationHs / 100).toLocaleString("fr-FR")} €) atteint : l'excédent est imposable.`);
+  }
   if (reductionGenerale) avertissements.push("Réduction générale calculée sur le mois, sans régularisation annuelle ; imputation simplifiée sur l'URSSAF.");
 
   return {
@@ -331,6 +354,7 @@ export function calculerBulletin(profil: ProfilPaie, variables: ElementsVariable
     remuneration,
     brut,
     montantHs,
+    hsExonerees,
     lignes: L,
     totalSalarial,
     totalPatronal,
