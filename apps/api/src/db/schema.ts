@@ -338,4 +338,83 @@ CREATE TABLE consentements (
 CREATE INDEX idx_consentements_email ON consentements(email_hash, finalite, at);
 `,
   },
+  {
+    version: 2,
+    name: "outils de l'expert-comptable",
+    sql: /* sql */ `
+CREATE TABLE immobilisations (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  compte TEXT NOT NULL,
+  libelle TEXT NOT NULL,
+  date_mise_en_service TEXT NOT NULL,
+  valeur_ht INTEGER NOT NULL CHECK (valeur_ht > 0),
+  duree_annees INTEGER NOT NULL CHECK (duree_annees BETWEEN 1 AND 100),
+  mode TEXT NOT NULL CHECK (mode IN ('lineaire','degressif','non_amortissable')),
+  amortissements_anterieurs INTEGER NOT NULL DEFAULT 0,  -- reprise d'un dossier existant
+  date_sortie TEXT,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+CREATE INDEX idx_immos_dossier ON immobilisations(dossier_id);
+
+CREATE TABLE releves_bancaires (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  compte TEXT NOT NULL,
+  fichier TEXT,
+  format TEXT NOT NULL,
+  nb_lignes INTEGER NOT NULL,
+  imported_by INTEGER,
+  imported_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE TABLE lignes_bancaires (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  releve_id INTEGER NOT NULL REFERENCES releves_bancaires(id),
+  compte TEXT NOT NULL,
+  date TEXT NOT NULL,
+  libelle TEXT NOT NULL,
+  montant INTEGER NOT NULL,
+  cle TEXT NOT NULL,
+  statut TEXT NOT NULL DEFAULT 'a_traiter' CHECK (statut IN ('a_traiter','rapprochee','ignoree')),
+  ecriture_ligne_id INTEGER,  -- libéré par trg_ligne_ecriture_suppr_releve
+  UNIQUE (dossier_id, compte, cle)
+);
+CREATE INDEX idx_lignes_bancaires ON lignes_bancaires(dossier_id, compte, statut, date);
+
+-- Une ligne d'écriture supprimée (brouillard modifié ou supprimé) libère la ligne de relevé.
+CREATE TRIGGER trg_ligne_ecriture_suppr_releve AFTER DELETE ON ecriture_lignes
+BEGIN
+  UPDATE lignes_bancaires SET ecriture_ligne_id = NULL, statut = 'a_traiter'
+  WHERE ecriture_ligne_id = OLD.id;
+END;
+
+CREATE TABLE regles_imputation (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  motif TEXT NOT NULL,
+  compte TEXT NOT NULL,
+  compte_aux TEXT,
+  UNIQUE (dossier_id, motif)
+);
+
+CREATE TABLE revision_points (
+  exercice_id INTEGER NOT NULL REFERENCES exercices(id),
+  code TEXT NOT NULL,
+  statut TEXT NOT NULL CHECK (statut IN ('a_faire','fait','na','anomalie')),
+  commentaire TEXT,
+  user_id INTEGER,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (exercice_id, code)
+);
+
+CREATE TABLE missions (
+  dossier_id INTEGER PRIMARY KEY REFERENCES dossiers(id),
+  data TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  updated_by INTEGER
+);
+`,
+  },
 ];

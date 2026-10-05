@@ -153,7 +153,7 @@ const fromFecDate = (v: string) => (v ? `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.s
 
 /** Contrôle la structure et la cohérence d'un fichier FEC. */
 export function controlerFec(content: string, maxAnomalies = 500): FecControle {
-  const lines = content.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.length > 0);
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.length > 0);
   const anomalies: FecAnomalie[] = [];
   const push = (a: FecAnomalie) => {
     if (anomalies.length < maxAnomalies) anomalies.push(a);
@@ -234,4 +234,68 @@ export function controlerFec(content: string, maxAnomalies = 500): FecControle {
   }
   result.valide = anomalies.length === 0;
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Lecture d'un FEC (reprise d'un dossier tenu dans un autre logiciel)
+// ---------------------------------------------------------------------------
+
+export interface EcritureFec {
+  journalCode: string;
+  journalLib: string;
+  ecritureNum: string;
+  date: string;
+  pieceRef: string;
+  pieceDate: string;
+  libelle: string;
+  lignes: {
+    compte: string;
+    compteLib: string;
+    compteAux: string | null;
+    compteAuxLib: string | null;
+    libelle: string;
+    debit: Cents;
+    credit: Cents;
+  }[];
+}
+
+/**
+ * Lit un FEC et regroupe ses lignes par écriture (JournalCode + EcritureNum).
+ * Le fichier doit avoir passé controlerFec au préalable.
+ */
+export function parseFec(content: string): EcritureFec[] {
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).filter((l) => l.length > 0);
+  if (lines.length < 2) return [];
+  const sep: FecSeparator = lines[0]!.includes("\t") ? "\t" : "|";
+  const map = new Map<string, EcritureFec>();
+  for (let i = 1; i < lines.length; i++) {
+    const f = lines[i]!.split(sep).map((x) => x.trim());
+    if (f.length !== FEC_COLUMNS.length) continue;
+    const g = (c: FecColumn) => f[FEC_COLUMNS.indexOf(c)]!;
+    const key = `${g("JournalCode")}|${g("EcritureNum")}`;
+    let e = map.get(key);
+    if (!e) {
+      e = {
+        journalCode: g("JournalCode"),
+        journalLib: g("JournalLib"),
+        ecritureNum: g("EcritureNum"),
+        date: fromFecDate(g("EcritureDate")),
+        pieceRef: g("PieceRef") || g("EcritureNum"),
+        pieceDate: fromFecDate(g("PieceDate") || g("EcritureDate")),
+        libelle: g("EcritureLib"),
+        lignes: [],
+      };
+      map.set(key, e);
+    }
+    e.lignes.push({
+      compte: g("CompteNum"),
+      compteLib: g("CompteLib"),
+      compteAux: g("CompAuxNum") || null,
+      compteAuxLib: g("CompAuxLib") || null,
+      libelle: g("EcritureLib"),
+      debit: toCents(g("Debit") || "0"),
+      credit: toCents(g("Credit") || "0"),
+    });
+  }
+  return [...map.values()];
 }

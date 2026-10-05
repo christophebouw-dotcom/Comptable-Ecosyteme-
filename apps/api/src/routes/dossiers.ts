@@ -1,4 +1,4 @@
-import { isIsoDate, maskIban, prochainesEcheances, type RegimeTva, validateBic, validateIban, validateSiren } from "@compta/core";
+import { type Mission, controlerMission, isIsoDate, maskIban, prochainesEcheances, type RegimeTva, validateBic, validateIban, validateSiren } from "@compta/core";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { conflict, unprocessable } from "../http/errors.js";
@@ -66,9 +66,14 @@ export async function dossierRoutes(app: FastifyInstance) {
         d.id,
       );
       const ex = db.get<{ id: number; debut: string; fin: string }>("SELECT id, debut, fin FROM exercices WHERE dossier_id = ? AND statut = 'ouvert' ORDER BY debut LIMIT 1", d.id);
+      const mission = db.get<{ data: string }>("SELECT data FROM missions WHERE dossier_id = ?", d.id);
+      const today = now().toISOString().slice(0, 10);
+      const lignesBancaires = db.get<{ n: number }>("SELECT COUNT(*) AS n FROM lignes_bancaires WHERE dossier_id = ? AND statut = 'a_traiter'", d.id)!.n;
       return {
         ...presentDossier(d, decrypt),
         exerciceCourant: ex ?? null,
+        alertesMission: controlerMission(mission ? (JSON.parse(mission.data) as Mission) : null, today),
+        lignesBancairesATraiter: lignesBancaires,
         brouillards: stats?.brouillards ?? 0,
         validees: stats?.validees ?? 0,
         prochainesEcheances: ex

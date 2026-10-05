@@ -12,3 +12,8 @@ export * from "./rgpd/droits.js";
 export * from "./rgpd/violations.js";
 export * from "./rgpd/registre.js";
 export * from "./rgpd/pseudonymisation.js";
+export * from "./immobilisations.js";
+export * from "./analyse.js";
+export * from "./revision.js";
+export * from "./banque.js";
+export * from "./mission.js";
