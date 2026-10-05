@@ -43,6 +43,7 @@ export function presentDossier(d: DossierRow, decryptIban: (v: string | null) =>
     ibanMasque: iban ? maskIban(iban) : null,
     bic: d.bic,
     prefixeFacture: d.prefixe_facture,
+    iaAutorisee: !!d.ia_autorisee,
     createdAt: d.created_at,
     archivedAt: d.archived_at,
   };

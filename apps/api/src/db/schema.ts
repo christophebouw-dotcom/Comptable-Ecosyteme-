@@ -417,4 +417,45 @@ CREATE TABLE missions (
 );
 `,
   },
+  {
+    version: 3,
+    name: "pièces justificatives et assistance IA",
+    sql: /* sql */ `
+ALTER TABLE dossiers ADD COLUMN ia_autorisee INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE pieces (
+  id INTEGER PRIMARY KEY,
+  dossier_id INTEGER NOT NULL REFERENCES dossiers(id),
+  nom_fichier TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  taille INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  contenu_enc TEXT NOT NULL,              -- fichier chiffré (AES-256-GCM)
+  statut TEXT NOT NULL CHECK (statut IN ('a_traiter','a_valider','comptabilisee','rejetee','erreur')),
+  source TEXT,                            -- 'ia', 'facturx' ou NULL (saisie manuelle)
+  extraction TEXT,
+  erreur TEXT,
+  ecriture_id INTEGER REFERENCES ecritures(id),
+  ia_modele TEXT,
+  ia_tokens_entree INTEGER,
+  ia_tokens_sortie INTEGER,
+  created_by INTEGER,
+  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  traitee_at TEXT,
+  UNIQUE (dossier_id, sha256)
+);
+CREATE INDEX idx_pieces_dossier ON pieces(dossier_id, statut);
+
+-- Une pièce comptabilisée ne peut plus être supprimée (justificatif à conserver 10 ans).
+CREATE TRIGGER trg_piece_comptabilisee_no_delete BEFORE DELETE ON pieces
+WHEN OLD.statut = 'comptabilisee'
+BEGIN SELECT RAISE(ABORT, 'Pièce comptabilisée : suppression interdite (C. com. art. L123-22)'); END;
+
+-- Brouillard supprimé : la pièce redevient à valider.
+CREATE TRIGGER trg_ecriture_suppr_piece AFTER DELETE ON ecritures
+BEGIN
+  UPDATE pieces SET ecriture_id = NULL, statut = 'a_valider' WHERE ecriture_id = OLD.id;
+END;
+`,
+  },
 ];

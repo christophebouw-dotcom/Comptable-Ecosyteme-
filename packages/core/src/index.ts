@@ -17,3 +17,4 @@ export * from "./analyse.js";
 export * from "./revision.js";
 export * from "./banque.js";
 export * from "./mission.js";
+export * from "./pieces.js";

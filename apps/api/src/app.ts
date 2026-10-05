@@ -13,6 +13,7 @@ import { authRoutes, loadSession } from "./routes/auth.js";
 import { comptaRoutes } from "./routes/compta.js";
 import { dossierRoutes } from "./routes/dossiers.js";
 import { expertiseRoutes } from "./routes/expertise.js";
+import { pieceRoutes } from "./routes/pieces.js";
 import { factureRoutes } from "./routes/factures.js";
 import { rgpdRoutes } from "./routes/rgpd.js";
 import { tiersRoutes } from "./routes/tiers.js";
@@ -114,6 +115,7 @@ export async function buildApp(config: AppConfig, ctx: AppContext = createContex
   await app.register(tiersRoutes);
   await app.register(factureRoutes);
   await app.register(expertiseRoutes);
+  await app.register(pieceRoutes);
   await app.register(rgpdRoutes);
 
   app.get("/api/audit", async (req) => {

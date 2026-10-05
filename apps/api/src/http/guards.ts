@@ -33,6 +33,7 @@ export interface DossierRow {
   iban_enc: string | null;
   bic: string | null;
   prefixe_facture: string;
+  ia_autorisee: number;
   created_at: string;
   archived_at: string | null;
 }

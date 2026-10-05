@@ -5,6 +5,7 @@ import { loadConfig } from "../src/config.js";
 import { type AppContext, createContext } from "../src/context.js";
 import { Database } from "../src/db/index.js";
 import { hashPassword } from "../src/security/crypto.js";
+import type { AssistantIA } from "../src/services/ia.js";
 
 export const PASSWORD = "Tr3s-Solide-Mot2Passe!";
 
@@ -20,9 +21,9 @@ export interface Client {
   req: (method: InjectOptions["method"], url: string, payload?: unknown) => Promise<{ status: number; body: any; headers: Record<string, unknown>; raw: string }>;
 }
 
-export async function setup(): Promise<TestEnv> {
+export async function setup(opts: { ia?: AssistantIA } = {}): Promise<TestEnv> {
   const config = loadConfig({ env: "test", databasePath: ":memory:", masterKey: randomBytes(32), logLevel: "silent", webDist: "/nonexistent" });
-  const ctx = createContext(config, new Database(":memory:"));
+  const ctx = createContext(config, new Database(":memory:"), opts.ia ?? null);
   ctx.now = () => new Date("2026-10-05T10:00:00.000Z");
   const app = await buildApp(config, ctx);
   const hash = await hashPassword(PASSWORD);
